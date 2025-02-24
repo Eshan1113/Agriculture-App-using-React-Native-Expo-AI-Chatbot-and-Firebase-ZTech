@@ -5,6 +5,7 @@ import Login from './login';
 import Register from './register';
 import Home from './home'; // Import the Home component
 
+
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<'welcome' | 'dashboard' | 'login' | 'register' | 'home'>('welcome');
 
