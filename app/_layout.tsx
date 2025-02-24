@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import WelcomeScreen from './index';
 import Dashboard from './dashboard';
 import Login from './login';
-import Register from './register'; 
+import Register from './register';
+import Home from './home'; // Import the Home component 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<'welcome' | 'dashboard' | 'login' | 'register'>('welcome');
 
