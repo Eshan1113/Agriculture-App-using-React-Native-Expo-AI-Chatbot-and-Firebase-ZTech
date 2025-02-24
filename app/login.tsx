@@ -8,17 +8,37 @@ import {
   Image,
   Pressable,
   Animated,
+  Dimensions,
+  Platform,
+  PixelRatio,
+  SafeAreaView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Use Expo-compatible icons
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+import { database } from './firebaseConfig'; // Import the database instance
+import { ref, get } from 'firebase/database';
+import * as Crypto from 'expo-crypto'; // For hashing the password
+
+const { width, height } = Dimensions.get('window');
+
+const normalizeFontSize = (size: number) => {
+  const scale = width / 320;
+  const newSize = size * scale;
+  return Math.round(PixelRatio.roundToNearestPixel(newSize));
+};
 
 interface LoginProps {
   navigateToDashboard: () => void;
-  navigateToRegister: () => void; // Added navigateToRegister prop
+  navigateToRegister: () => void;
+  navigateToHome: () => void; // Add navigateToHome prop
 }
 
-const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister }) => {
-  const [name, setName] = useState('');
+const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, navigateToHome }) => {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Loading state
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const handleNavigation = (navigateFunction: () => void) => {
@@ -31,129 +51,194 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister }
     });
   };
 
+  // Hash the password using SHA-256
+  const hashPassword = async (password: string) => {
+    const hashedPassword = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      password
+    );
+    return hashedPassword;
+  };
+
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    setIsLoading(true); // Start loading
+
+    try {
+      // Hash the entered password
+      const hashedPassword = await hashPassword(password);
+
+      // Check if the username exists in Firebase
+      const userRef = ref(database, `users/${username}`);
+      const snapshot = await get(userRef);
+
+      if (!snapshot.exists()) {
+        Alert.alert('Error', 'Username does not exist.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Compare the hashed password
+      const userData = snapshot.val();
+      if (userData.password !== hashedPassword) {
+        Alert.alert('Error', 'Incorrect password.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Login successful
+      Alert.alert(
+        'Success',
+        'Login successful!',
+        [
+          {
+            text: 'OK',
+            onPress: () => handleNavigation(navigateToHome), // Redirect to Home screen
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to login: ' + (error as any).message);
+    } finally {
+      setIsLoading(false); // Stop loading
+    }
+  };
+
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      {/* Green Triangle Background */}
-      <View style={styles.triangleBackground} />
-
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>
-            <Text style={styles.logoPrefix}>Z-</Text>
-            <Text style={styles.logoSuffix}>Tech</Text>
-          </Text>
-        </View>
-
-        {/* Login Title with Underline */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.loginText}>Login</Text>
-          <View style={styles.underline}>
-            <View style={styles.underlineLine} />
-            <View style={styles.underlineDot} />
-          </View>
-        </View>
-        
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          <Image 
-            source={require('../assets/1.jpg')}
-            style={styles.avatar}
-          />
-        </View>
-
-        {/* Form Fields */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Name</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder=""
-            />
+    <SafeAreaView style={styles.safeArea}>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
+        <View style={styles.triangleBackground} />
+        <View style={styles.content}>
+          {/* Logo */}
+          <View style={styles.header}>
+            <Text style={styles.logo}>
+              <Text style={styles.logoPrefix}>Z-</Text>
+              <Text style={styles.logoSuffix}>Tech</Text>
+            </Text>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder=""
-            />
+          {/* Login Title with Underline */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.loginText}>Login</Text>
+            <View style={styles.underline}>
+              <View style={styles.underlineLine} />
+              <View style={styles.underlineDot} />
+            </View>
           </View>
 
-          {/* Help Links */}
-          <View style={styles.linkContainer}>
-            <Text style={styles.helpText}>Need Help? </Text>
-            <Pressable>
-              <Text style={styles.linkText}>Forgot Password</Text>
-            </Pressable>
+          {/* Avatar */}
+          <View style={styles.avatarContainer}>
+            <Image source={require('../assets/1.jpg')} style={styles.avatar} />
           </View>
 
-          <View style={styles.createAccountContainer}>
-            <Text style={styles.normalText}>Don't have an account? </Text>
-            <Pressable onPress={() => handleNavigation(navigateToRegister)}>
-              <Text style={[styles.linkText, styles.createAccountText]}>Create account</Text>
-            </Pressable>
-          </View>
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Username</Text>
+              <TextInput
+                style={styles.input}
+                value={username}
+                onChangeText={setUsername}
+                placeholder=""
+              />
+            </View>
 
-          {/* Login Button */}
-          <TouchableOpacity 
-            style={styles.loginButton}
-            onPress={() => handleNavigation(navigateToDashboard)}
-          >
-            <Text style={styles.loginButtonText}>Login</Text>
-          </TouchableOpacity>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder=""
+              />
+            </View>
 
-          {/* Navigation */}
-          <View style={styles.navigationContainer}>
-            <TouchableOpacity 
-              style={styles.backButton} 
-              onPress={() => handleNavigation(navigateToDashboard)}
+            {/* Help Links */}
+            <View style={styles.linkContainer}>
+              <Text style={styles.helpText}>Need Help? </Text>
+              <Pressable>
+                <Text style={styles.linkText}>Forgot Password</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.createAccountContainer}>
+              <Text style={styles.normalText}>Don't have an account? </Text>
+              <Pressable onPress={() => handleNavigation(navigateToRegister)}>
+                <Text style={[styles.linkText, styles.createAccountText]}>Create account</Text>
+              </Pressable>
+            </View>
+
+            {/* Login Button */}
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleLogin}
+              disabled={isLoading} // Disable button when loading
             >
-              <Ionicons name="arrow-back" size={24} color="#333" />
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" /> // Spinner
+              ) : (
+                <Text style={styles.loginButtonText}>Login</Text>
+              )}
             </TouchableOpacity>
-            <View style={styles.dotsContainer}>
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={styles.dot} />
+
+            {/* Navigation */}
+            <View style={styles.navigationContainer}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => handleNavigation(navigateToDashboard)}
+              >
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <View style={styles.dotsContainer}>
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={styles.dot} />
+              </View>
             </View>
           </View>
         </View>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#fff',
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: width * 0.05,
+  },
   triangleBackground: {
     position: 'absolute',
-    top: -100,
-    left: -100, // Moved to the left side
-    width: 400,
-    height: 300,
+    top: -height * 0.2,
+    left: -width * 0.2,
+    width: width * 0.8,
+    height: height * 0.4,
     backgroundColor: '#4CD964',
-    transform: [{ rotate: '-45deg' }], // Rotated forward
+    transform: [{ rotate: '-45deg' }],
   },
   content: {
     flex: 1,
-    padding: 24,
+    padding: width * 0.06,
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 150,
+    marginBottom: height * 0.05,
     alignItems: 'flex-end',
   },
   logo: {
-    fontSize: 28,
+    fontSize: normalizeFontSize(20),
     fontWeight: '700',
   },
   logoPrefix: {
@@ -163,13 +248,13 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   titleContainer: {
-    marginBottom: 20,
+    marginBottom: height * 0.02,
     alignItems: 'center',
   },
   loginText: {
-    fontSize: 24,
+    fontSize: normalizeFontSize(18),
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: height * 0.01,
   },
   underline: {
     flexDirection: 'row',
@@ -177,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   underlineLine: {
-    width: 50,
+    width: width * 0.15,
     height: 2,
     backgroundColor: '#4CD964',
     marginTop: 4,
@@ -192,53 +277,52 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: height * 0.02,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: width * 0.15,
+    height: width * 0.15,
+    borderRadius: width * 0.075,
     backgroundColor: '#E8E8E8',
   },
   formContainer: {
     width: '100%',
-    marginTop: 10,
   },
   inputWrapper: {
-    marginBottom: 20,
+    marginBottom: height * 0.02,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: normalizeFontSize(14),
     color: '#000',
     marginBottom: 4,
   },
   input: {
     width: '100%',
-    height: 40,
+    height: Platform.OS === 'ios' ? height * 0.05 : height * 0.05,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
-    fontSize: 16,
+    fontSize: normalizeFontSize(14),
   },
   linkContainer: {
     flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: height * 0.01,
+    marginBottom: height * 0.01,
   },
   helpText: {
     color: '#757575',
-    fontSize: 14,
+    fontSize: normalizeFontSize(12),
   },
   linkText: {
     color: '#4CD964',
-    fontSize: 14,
+    fontSize: normalizeFontSize(12),
   },
   createAccountContainer: {
     flexDirection: 'row',
-    marginBottom: 30,
+    marginBottom: height * 0.02,
   },
   normalText: {
     color: '#757575',
-    fontSize: 14,
+    fontSize: normalizeFontSize(12),
   },
   createAccountText: {
     textDecorationLine: 'underline',
@@ -246,23 +330,22 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#4CD964',
     width: '100%',
-    height: 48,
-    borderRadius: 24,
+    height: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
-    elevation: 2,
+    marginBottom: height * 0.03,
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: normalizeFontSize(14),
     fontWeight: '600',
   },
   navigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 2,
+    paddingHorizontal: width * 0.02,
   },
   backButton: {
     width: 40,
