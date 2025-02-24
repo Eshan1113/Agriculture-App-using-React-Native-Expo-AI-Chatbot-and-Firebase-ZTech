@@ -1,39 +1,44 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import React, { useState } from 'react';
+import WelcomeScreen from './index';
+import Dashboard from './dashboard';
+import Login from './login';
+import Register from './register'; // Import the Register component
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+const App = () => {
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'dashboard' | 'login' | 'register'>('welcome');
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+  const navigateToDashboard = () => {
+    setCurrentScreen('dashboard');
+  };
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const navigateToWelcome = () => {
+    setCurrentScreen('welcome');
+  };
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+  const navigateToLogin = () => {
+    setCurrentScreen('login');
+  };
 
-  if (!loaded) {
-    return null;
-  }
+  const navigateToRegister = () => {
+    setCurrentScreen('register');
+  };
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <>
+      {currentScreen === 'welcome' && (
+        <WelcomeScreen navigateToDashboard={navigateToDashboard} />
+      )}
+      {currentScreen === 'dashboard' && (
+        <Dashboard navigateToWelcome={navigateToWelcome} navigateToLogin={navigateToLogin} />
+      )}
+      {currentScreen === 'login' && (
+        <Login navigateToDashboard={navigateToDashboard} navigateToRegister={navigateToRegister} />
+      )}
+      {currentScreen === 'register' && (
+        <Register navigateToLogin={navigateToLogin} navigateToDashboard={navigateToDashboard} />
+      )}
+    </>
   );
-}
+};
+
+export default App;
