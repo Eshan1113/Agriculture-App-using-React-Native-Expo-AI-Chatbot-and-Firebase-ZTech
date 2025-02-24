@@ -8,168 +8,278 @@ import {
   Image,
   Pressable,
   Animated,
+  Dimensions,
+  Platform,
+  PixelRatio,
+  SafeAreaView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Use Expo-compatible icons
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { database } from './firebaseConfig'; // Import the database instance
+import { ref, set, get } from 'firebase/database';
+import * as Crypto from 'expo-crypto'; // For hashing the password
+import LottieView from 'lottie-react-native'; // For animated loading
+
+// Get device width and height for responsive styles
+const { width, height } = Dimensions.get('window');
+
+// Function to normalize font size
+const normalizeFontSize = (size: number) => {
+  const scale = width / 320;
+  const newSize = size * scale;
+  return Math.round(PixelRatio.roundToNearestPixel(newSize));
+};
+
 interface RegisterProps {
-  navigateToLogin: () => void; // Navigate to the login screen
-  navigateToDashboard: () => void; // Navigate to the dashboard after registration
+  navigateToLogin: () => void;
+  navigateToDashboard: () => void;
 }
 
 const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboard }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const fadeAnim = useRef(new Animated.Value(1)).current; // Initial opacity for erase animation
+  const [isLoading, setIsLoading] = useState(false); // Loading state
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const handleBackNavigation = () => {
-    // Start the erase-out animation
     Animated.timing(fadeAnim, {
-      toValue: 0, // Fade out to 0 opacity
-      duration: 500, // Animation duration
-      useNativeDriver: true, // Use native driver for better performance
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
     }).start(() => {
-      navigateToDashboard(); // Navigate after animation completes
+      navigateToDashboard();
     });
   };
 
   const handleLoginNavigation = () => {
-    // Start the erase-out animation
     Animated.timing(fadeAnim, {
-      toValue: 0, // Fade out to 0 opacity
-      duration: 500, // Animation duration
-      useNativeDriver: true, // Use native driver for better performance
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
     }).start(() => {
-      navigateToLogin(); // Navigate to the login screen
+      navigateToLogin();
     });
   };
 
+  // Hash the password using SHA-256
+  const hashPassword = async (password: string) => {
+    const hashedPassword = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      password
+    );
+    return hashedPassword;
+  };
+
+  // Check if username or email already exists
+  const checkExistingUser = async (username: string, email: string) => {
+    const usernameRef = ref(database, `users/${username}`);
+    const emailRef = ref(database, 'users');
+    const snapshot = await get(usernameRef);
+    const emailSnapshot = await get(emailRef);
+
+    if (snapshot.exists()) {
+      return 'Username already exists.';
+    }
+
+    // Check if email already exists
+    if (emailSnapshot.exists()) {
+      const users = emailSnapshot.val();
+      for (const key in users) {
+        if (users[key].email === email) {
+          return 'Email already exists.';
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const handleRegister = async () => {
+    if (!username || !email || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    setIsLoading(true); // Start loading
+
+    try {
+      // Check if username or email already exists
+      const existingUserError = await checkExistingUser(username, email);
+      if (existingUserError) {
+        Alert.alert('Error', existingUserError);
+        setIsLoading(false);
+        return;
+      }
+
+      // Hash the password
+      const hashedPassword = await hashPassword(password);
+
+      // Save user data to Firebase
+      const userData = {
+        username,
+        email,
+        password: hashedPassword, // Store hashed password
+      };
+
+      await set(ref(database, `users/${username}`), userData);
+
+      Alert.alert(
+        'Success',
+        'User registered successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigateToLogin(), // Redirect to Login screen
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to register user: ' + (error as any).message);
+    } finally {
+      setIsLoading(false); // Stop loading
+    }
+  };
+
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      {/* Green Triangle Background */}
+    <SafeAreaView style={styles.safeArea}>
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <StatusBar style="dark" backgroundColor="transparent" translucent />
-      <View style={styles.triangleBackground} />
-
-      <View style={styles.content}>
-        {/* Logo */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>
-            <Text style={styles.logoPrefix}>Z-</Text>
-            <Text style={styles.logoSuffix}>Tech</Text>
-          </Text>
-        </View>
-
-        {/* Register Title with Underline */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.loginText}>Register</Text>
-          <View style={styles.underline}>
-            <View style={styles.underlineDot} /> {/* Moved dot to the left */}
-            <View style={styles.underlineLine} />
-          </View>
-        </View>
-        
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          <Image 
-            source={require('../assets/1.jpg')}
-            style={styles.avatar}
-          />
-        </View>
-
-        {/* Form Fields */}
-        <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Username</Text>
-            <TextInput
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-              placeholder=""
-            />
+        <View style={styles.triangleBackground} />
+        <View style={styles.content}>
+          {/* Logo */}
+          <View style={styles.header}>
+            <Text style={styles.logo}>
+              <Text style={styles.logoPrefix}>Z-</Text>
+              <Text style={styles.logoSuffix}>Tech</Text>
+            </Text>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder=""
-              keyboardType="email-address"
-            />
+          {/* Register Title with Underline */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.loginText}>Register</Text>
+            <View style={styles.underline}>
+              <View style={styles.underlineDot} />
+              <View style={styles.underlineLine} />
+            </View>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder=""
-            />
+          {/* Avatar */}
+          <View style={styles.avatarContainer}>
+            <Image source={require('../assets/1.jpg')} style={styles.avatar} />
           </View>
 
-          {/* Login Link */}
-          <View style={styles.linkContainer}>
-            <Text style={styles.helpText}>Already have an account? </Text>
-            <Pressable onPress={handleLoginNavigation}>
-              <Text style={styles.linkText}>Login</Text>
-            </Pressable>
-          </View>
+          {/* Form Fields */}
+          <View style={styles.formContainer}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Username</Text>
+              <TextInput
+                style={styles.input}
+                value={username}
+                onChangeText={setUsername}
+                placeholder=""
+              />
+            </View>
 
-          {/* Register Button */}
-          <TouchableOpacity 
-            style={styles.loginButton}
-            onPress={handleBackNavigation} // Use the animation function here
-          >
-            <Text style={styles.loginButtonText}>Register</Text>
-          </TouchableOpacity>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder=""
+                keyboardType="email-address"
+              />
+            </View>
 
-          {/* Navigation */}
-          <View style={styles.navigationContainer}>
-            <TouchableOpacity style={styles.backButton} onPress={handleBackNavigation}>
-              {/* Use Ionicons from @expo/vector-icons */}
-              <Ionicons name="arrow-back" size={24} color="#333" />
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder=""
+              />
+            </View>
+
+            {/* Login Link */}
+            <View style={styles.linkContainer}>
+              <Text style={styles.helpText}>Already have an account? </Text>
+              <Pressable onPress={handleLoginNavigation}>
+                <Text style={styles.linkText}>Login</Text>
+              </Pressable>
+            </View>
+
+            {/* Register Button */}
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleRegister}
+              disabled={isLoading} // Disable button when loading
+            >
+              {isLoading ? (
+                <LottieView
+                  source={require('../assets/ani2.json')} // Add a loading animation JSON file
+                  autoPlay
+                  loop
+                  style={styles.loadingAnimation}
+                />
+              ) : (
+                <Text style={styles.loginButtonText}>Register</Text>
+              )}
             </TouchableOpacity>
-            <View style={styles.dotsContainer}>
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={[styles.dot, styles.activeDot]} />
-              <View style={styles.dot} />
+
+            {/* Navigation */}
+            <View style={styles.navigationContainer}>
+              <TouchableOpacity style={styles.backButton} onPress={handleBackNavigation}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <View style={styles.dotsContainer}>
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={styles.dot} />
+              </View>
             </View>
           </View>
         </View>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#fff',
   },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: width * 0.05,
+  },
   triangleBackground: {
     position: 'absolute',
-    top: -100,
-    right: -100, // Moved to the right side
-    width: 400,
-    height: 300,
+    top: -height * 0.2,
+    right: -width * 0.2,
+    width: width * 0.8,
+    height: height * 0.4,
     backgroundColor: '#4CD964',
-    transform: [{ rotate: '45deg' }], // Rotated backward
+    transform: [{ rotate: '45deg' }],
   },
   content: {
     flex: 1,
-    padding: 24,
-    justifyContent: 'center', // Center content vertically
+    padding: width * 0.06,
+    justifyContent: 'center',
   },
   header: {
-    marginBottom: 200, // Adjusted to bring "Z-Tech" further down
-    alignItems: 'flex-start', // Align logo to the left
+    marginBottom: height * 0.05,
+    alignItems: 'flex-start',
   },
   logo: {
-    fontSize: 28,
+    fontSize: normalizeFontSize(20),
     fontWeight: '700',
   },
   logoPrefix: {
@@ -179,13 +289,13 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   titleContainer: {
-    marginBottom: 20,
-    alignItems: 'center', // Center the title
+    marginBottom: height * 0.02,
+    alignItems: 'center',
   },
   loginText: {
-    fontSize: 24,
+    fontSize: normalizeFontSize(18),
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: height * 0.01,
   },
   underline: {
     flexDirection: 'row',
@@ -193,92 +303,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   underlineLine: {
-    width: 50, // Adjust the width of the underline
-    height: 2, // Adjust the thickness of the underline
-    backgroundColor: '#4CD964', // Green color for the underline
-    marginTop: 4, // Space between text and underline
+    width: width * 0.15,
+    height: 2,
+    backgroundColor: '#4CD964',
+    marginTop: 4,
   },
   underlineDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#4CD964',
-    marginRight: 4, // Moved dot to the left side of the underline
-    marginTop: 4, // Align with the underline
+    marginRight: 4,
+    marginTop: 4,
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: 0,
+    marginBottom: height * 0.02,
   },
   avatar: {
-    width: 80,
-    height: 40,
-    borderRadius: 40,
+    width: width * 0.15,
+    height: width * 0.15,
+    borderRadius: width * 0.075,
     backgroundColor: '#E8E8E8',
   },
   formContainer: {
     width: '100%',
-    marginTop: 10, // Adjusted to move the form fields down
   },
   inputWrapper: {
-    marginBottom: 20,
+    marginBottom: height * 0.02,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: normalizeFontSize(14),
     color: '#000',
     marginBottom: 4,
   },
   input: {
     width: '100%',
-    height: 40,
+    height: Platform.OS === 'ios' ? height * 0.05 : height * 0.05,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
-    fontSize: 16,
+    fontSize: normalizeFontSize(14),
   },
   linkContainer: {
     flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: height * 0.01,
+    marginBottom: height * 0.01,
   },
   helpText: {
     color: '#757575',
-    fontSize: 14,
+    fontSize: normalizeFontSize(12),
   },
   linkText: {
     color: '#4CD964',
-    fontSize: 14,
-  },
-  createAccountContainer: {
-    flexDirection: 'row',
-    marginBottom: 30,
-  },
-  normalText: {
-    color: '#757575',
-    fontSize: 14,
-  },
-  createAccountText: {
-    textDecorationLine: 'underline',
+    fontSize: normalizeFontSize(12),
   },
   loginButton: {
     backgroundColor: '#4CD964',
     width: '100%',
-    height: 48,
-    borderRadius: 24,
+    height: Platform.OS === 'ios' ? height * 0.06 : height * 0.05,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
-    elevation: 2,
+    marginBottom: height * 0.03,
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: normalizeFontSize(14),
     fontWeight: '600',
+  },
+  loadingAnimation: {
+    width: 50,
+    height: 50,
   },
   navigationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 1,
+    paddingHorizontal: width * 0.02,
   },
   backButton: {
     width: 40,
