@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Use Expo-compatible icons
-
+import { StatusBar } from 'expo-status-bar';
 interface RegisterProps {
   navigateToLogin: () => void; // Navigate to the login screen
   navigateToDashboard: () => void; // Navigate to the dashboard after registration
@@ -47,6 +47,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       {/* Green Triangle Background */}
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.triangleBackground} />
 
       <View style={styles.content}>
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
   loginText: {
     fontSize: 24,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   underline: {
     flexDirection: 'row',
@@ -207,11 +208,11 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 0,
   },
   avatar: {
     width: 80,
-    height: 80,
+    height: 40,
     borderRadius: 40,
     backgroundColor: '#E8E8E8',
   },
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
   },
   backButton: {
     width: 40,

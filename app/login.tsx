@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; // Use Expo-compatible icons
-
+import { StatusBar } from 'expo-status-bar';
 interface LoginProps {
   navigateToDashboard: () => void;
   navigateToRegister: () => void; // Added navigateToRegister prop
@@ -34,6 +34,7 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister }
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       {/* Green Triangle Background */}
+        <StatusBar style="dark" backgroundColor="transparent" translucent />
       <View style={styles.triangleBackground} />
 
       <View style={styles.content}>
