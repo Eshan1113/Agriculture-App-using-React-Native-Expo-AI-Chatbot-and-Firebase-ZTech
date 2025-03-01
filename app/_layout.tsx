@@ -41,7 +41,7 @@ const App = () => {
         <Login
           navigateToDashboard={navigateToDashboard}
           navigateToRegister={navigateToRegister}
-          navigateToHome={navigateToHome} // Pass navigateToHome
+          navigateToHome={navigateToHome} 
         />
       )}
       {currentScreen === 'register' && (
