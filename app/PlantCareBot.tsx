@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface PlantData {
-  answer?: string;
-  confidence?: number;
-  care_tips?: string[];
+  common_name?: string;
+  scientific_name?: string;
+  watering?: string;
+  sunlight?: string[];
+  care_level?: string;
   error?: string;
 }
 
@@ -13,63 +15,37 @@ const PlantCareBot = () => {
   const [plantData, setPlantData] = useState<PlantData | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const DEEPSEEK_API_KEY = 'sk-0cf4905a22074509baba2a7f3e19e441'; // Your DeepSeek key
-  const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions'; // Verify actual endpoint
+  const PERENUAL_API_KEY = 'sk-5w1O67d33a895860c9145'; // Use your actual key here
 
   const searchPlants = async () => {
     try {
       setLoading(true);
-      setPlantData(null);
+      const response = await fetch(
+        `https://perenual.com/api/species-list?key=${PERENUAL_API_KEY}&q=${encodeURIComponent(query)}`
+      );
       
-      const response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [{
-            role: "user",
-            content: `Act as a plant care expert. Answer concisely: ${query}`
-          }],
-          temperature: 0.7,
-          max_tokens: 150
-        })
-      });
-
       const data = await response.json();
       
-      if (data.choices && data.choices.length > 0) {
-        setPlantData({
-          answer: data.choices[0].message.content,
-          confidence: data.choices[0].confidence,
-          care_tips: extractCareTips(data.choices[0].message.content)
-        });
+      if (data.data && data.data.length > 0) {
+        setPlantData(data.data[0]);
       } else {
-        setPlantData({ error: "No relevant plant care information found" });
+        setPlantData({ error: "No plant found with that name" });
       }
     } catch (error) {
       console.error('API Error:', error);
-      setPlantData({ error: "Failed to fetch plant care advice" });
+      setPlantData({ error: "Failed to fetch plant data" });
     } finally {
       setLoading(false);
     }
-  };
-
-  // Helper function to format responses
-  const extractCareTips = (text: string) => {
-    return text.split('\n').filter(line => line.trim().length > 0);
   };
 
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="Ask about plant care (e.g., 'How often to water orchids?')"
+        placeholder="Search for a plant (e.g., 'rose' or 'succulent')"
         value={query}
         onChangeText={setQuery}
-        multiline
       />
       
       <TouchableOpacity
@@ -78,7 +54,7 @@ const PlantCareBot = () => {
         disabled={loading}
       >
         <Text style={styles.buttonText}>
-          {loading ? 'Asking DeepSeek...' : 'Get Plant Advice'}
+          {loading ? 'Searching...' : 'Get Plant Info'}
         </Text>
       </TouchableOpacity>
 
@@ -88,17 +64,11 @@ const PlantCareBot = () => {
             <Text style={styles.errorText}>{plantData.error}</Text>
           ) : (
             <>
-              <Text style={styles.plantName}>DeepSeek's Advice:</Text>
-              {plantData.care_tips?.map((tip, index) => (
-                <Text key={index} style={styles.tipText}>
-                  • {tip}
-                </Text>
-              ))}
-              {plantData.confidence && (
-                <Text style={styles.confidenceText}>
-                  Confidence: {Math.round(plantData.confidence * 100)}%
-                </Text>
-              )}
+              <Text style={styles.plantName}>{plantData.common_name}</Text>
+              <Text>Scientific Name: {plantData.scientific_name}</Text>
+              <Text>Watering: {plantData.watering}</Text>
+              <Text>Sunlight: {plantData.sunlight?.join(', ')}</Text>
+              <Text>Care Level: {plantData.care_level}</Text>
             </>
           )}
         </View>
@@ -107,19 +77,9 @@ const PlantCareBot = () => {
   );
 };
 
-// Add these new styles
 const styles = StyleSheet.create({
-    container: {
-        padding: 20,
-      },
-  tipText: {
-    marginVertical: 4,
-    lineHeight: 20,
-  },
-  confidenceText: {
-    marginTop: 10,
-    fontStyle: 'italic',
-    color: '#6B7280',
+  container: {
+    padding: 20,
   },
   input: {
     height: 40,
@@ -153,7 +113,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#EF4444',
   },
-  // Keep existing styles and add any new ones
 });
 
 export default PlantCareBot;
