@@ -21,6 +21,16 @@ import { ref, onValue, set } from 'firebase/database'; // Add set for writing to
 
 const Home = () => {
   const [showSidebar, setShowSidebar] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [isDeviceOnline, setIsDeviceOnline] = useState(true);
+  const [notificationsViewed, setNotificationsViewed] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    message: string;
+    timestamp: Date;
+    isRead: boolean;
+  }>>([]);
   const [sensorData, setSensorData] = useState({
     humidity: 0,
     temperature: 0,
@@ -34,7 +44,6 @@ const Home = () => {
 
   // Fetch real-time data from Firebase
   useEffect(() => {
-    // Fetch sensor data
     const dbRef = ref(database, 'sensor_data');
     const unsubscribeSensorData = onValue(dbRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -45,6 +54,9 @@ const Home = () => {
           soil_moisture: data.soil_moisture,
           relay_status: data.relay_status,
         });
+        // Update last update time whenever new data arrives
+        setLastUpdateTime(new Date());
+        setIsDeviceOnline(true);
       }
     });
 
@@ -62,6 +74,40 @@ const Home = () => {
       unsubscribeThreshold();
     };
   }, []);
+
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const now = new Date();
+      const diffMinutes = (now.getTime() - lastUpdateTime.getTime()) / 1000 / 60;
+
+      if (diffMinutes > 1 && isDeviceOnline) {
+        setIsDeviceOnline(false);
+        setNotifications(prev => [
+          {
+            id: Date.now().toString(),
+            message: 'Device offline - No recent updates',
+            timestamp: new Date(),
+            isRead: false
+          },
+          ...prev
+        ]);
+      } else if (diffMinutes <= 1 && !isDeviceOnline) {
+        setIsDeviceOnline(true);
+        setNotifications(prev => [
+          {
+            id: Date.now().toString(),
+            message: 'Device back online',
+            timestamp: new Date(),
+            isRead: false
+          },
+          ...prev
+        ]);
+      }
+    }, 30000); 
+
+    return () => clearInterval(checkInterval);
+  }, [lastUpdateTime, isDeviceOnline]);
+
 
   // Update threshold in Firebase when slider changes
   const handleThresholdChange = (value: number) => {
@@ -86,6 +132,68 @@ const Home = () => {
       }).start();
     }
   };
+
+  const [sensorReadings, setSensorReadings] = useState<Array<{
+    temperature: number;
+    soil_moisture: number;
+    humidity: number;
+  }>>([]);
+  const [averages, setAverages] = useState<{
+    temperature: number;
+    soil_moisture: number;
+    humidity: number;
+  }>({ temperature: 0, soil_moisture: 0, humidity: 0 });
+
+  // Add this useEffect for calculating averages
+  useEffect(() => {
+    if (!isDeviceOnline) return; // Stop calculating if device is offline
+
+    const newReading = {
+      temperature: sensorData.temperature,
+      soil_moisture: sensorData.soil_moisture,
+      humidity: sensorData.humidity
+    };
+
+    setSensorReadings(prev => {
+      const updatedReadings = [...prev, newReading];
+
+      if (updatedReadings.length === 10) {
+        const avgTemp = updatedReadings.reduce((sum, reading) => sum + reading.temperature, 0) / 10;
+        const avgMoisture = updatedReadings.reduce((sum, reading) => sum + reading.soil_moisture, 0) / 10;
+        const avgHumidity = updatedReadings.reduce((sum, reading) => sum + reading.humidity, 0) / 10;
+
+        setAverages({
+          temperature: avgTemp,
+          soil_moisture: avgMoisture,
+          humidity: avgHumidity
+        });
+
+        return [];
+      }
+      return updatedReadings;
+    });
+  }, [sensorData, isDeviceOnline]); // This will trigger every time sensorData updates
+
+  // Add this state for the timer
+  const [timer, setTimer] = useState(10);
+
+  // Add this useEffect for the countdown timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimer(prev => (prev > 0 ? prev - 1 : 10));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (notificationsViewed) {
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, isRead: true }))
+      );
+      setNotificationsViewed(false);
+    }
+  }, [notificationsViewed]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -131,16 +239,104 @@ const Home = () => {
         </Animated.View>
       )}
 
+      {/* Notification Panel */}
+      {showNotifications && (
+  <View style={styles.notificationPanel}>
+    <View style={styles.notificationHeader}>
+      <Text style={styles.notificationPanelTitle}>Notifications</Text>
+      <View style={styles.notificationActions}>
+        <TouchableOpacity 
+          onPress={() => {
+            setNotifications([]);
+            setNotificationsViewed(true);
+          }}
+          style={styles.clearButton}
+        >
+          <Svg width="20" height="20" viewBox="0 0 24 24">
+            <Path
+              d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+              fill="#6B7280"
+            />
+          </Svg>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowNotifications(false)}>
+          <Text style={styles.closeButton}>×</Text>
+        </TouchableOpacity>
+      </View>
+    
+          </View>
+          <ScrollView style={styles.notificationList}>
+            {notifications.length === 0 ? (
+              <Text style={styles.noNotificationsText}>No notifications</Text>
+            ) : (
+              notifications.map((notification) => (
+                <View
+                  key={notification.id}
+                  style={[
+                    styles.notificationItem,
+                    !notification.isRead && styles.unreadNotification
+                  ]}
+                >
+                  <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  <Text style={styles.notificationTime}>
+                    {notification.timestamp.toLocaleTimeString()}
+                  </Text>
+                </View>
+              ))
+            )}
+            {/* Add Device Status Notification */}
+            {!isDeviceOnline && (
+              <View style={[styles.notificationItem, styles.unreadNotification]}>
+                <Text style={styles.notificationMessage}>
+                  ⚠️ Device offline - Last update: {lastUpdateTime.toLocaleTimeString()}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Main Content */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
-          {/* Header */}
+          {/* Header with Notification Bell */}
           <View style={styles.header}>
             <TouchableOpacity onPress={toggleSidebar} style={styles.logoContainer}>
               <Text style={styles.logoText}>Z</Text>
             </TouchableOpacity>
             <Text style={styles.dashboardTitle}>Dashboard</Text>
+            <TouchableOpacity
+              style={styles.notificationIconContainer}
+              onPress={() => {
+                setShowNotifications(!showNotifications);
+                if (!showNotifications) {
+                  // Mark all notifications as read when opening
+                  setNotifications(prev =>
+                    prev.map(n => ({ ...n, isRead: true }))
+                  );
+                  setNotificationsViewed(true);
+                }
+              }}
+            >
+              <Svg height="24" width="24" viewBox="0 0 24 24">
+                <Path
+                  d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+                  fill={
+                    notifications.some(n => !n.isRead) ? '#FACC15' : '#4B5563'
+                  }
+                />
+              </Svg>
+              {notifications.some(n => !n.isRead) && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>
+                    {notifications.filter(n => !n.isRead).length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
+
+
 
           {/* Device Info Card */}
           <View style={styles.card}>
@@ -168,6 +364,41 @@ const Home = () => {
             </View>
           </View>
 
+
+
+          <View style={styles.averagesContainer}>
+            <View style={styles.averagesHeader}>
+              <Text style={styles.averagesTitle}>10-Second Averages</Text>
+              <View style={styles.timerContainer}>
+                <Svg height="20" width="20" viewBox="0 0 24 24">
+                  <Path
+                    d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"
+                    fill="#4B5563"
+                  />
+                  <Path
+                    d="M13 7h-2v6h6v-2h-4z"
+                    fill="#4B5563"
+                  />
+                </Svg>
+                <Text style={styles.timerText}>{timer}s</Text>
+              </View>
+            </View>
+            <View style={styles.averageRow}>
+              <View style={styles.averageBox}>
+                <Text style={styles.averageValue}>{averages.temperature.toFixed(1)}°C</Text>
+                <Text style={styles.averageLabel}>Temperature</Text>
+              </View>
+              <View style={styles.averageBox}>
+                <Text style={styles.averageValue}>{averages.soil_moisture.toFixed(1)}%</Text>
+                <Text style={styles.averageLabel}>Soil Moisture</Text>
+              </View>
+              <View style={styles.averageBox}>
+                <Text style={styles.averageValue}>{averages.humidity.toFixed(1)}%</Text>
+                <Text style={styles.averageLabel}>Humidity</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Statistics Card */}
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -187,6 +418,8 @@ const Home = () => {
                 </View>
               </View>
             </View>
+
+
 
             {/* Gauges */}
             <View style={styles.gaugesContainer}>
@@ -249,15 +482,20 @@ const Home = () => {
                 maximumValue={100}
                 step={1}
                 value={soilMoistureThreshold}
-                onValueChange={handleThresholdChange}
-                minimumTrackTintColor="#4ADE80"
-                maximumTrackTintColor="#E5E7EB"
-                thumbTintColor="#4ADE80"
+                onValueChange={isDeviceOnline ? handleThresholdChange : undefined}
+                disabled={!isDeviceOnline}
+                minimumTrackTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
+                maximumTrackTintColor={isDeviceOnline ? '#E5E7EB' : '#E5E7EB'}
+                thumbTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
               />
             </View>
+
           </View>
+
         </View>
+
       </ScrollView>
+
     </SafeAreaView>
   );
 };
@@ -368,6 +606,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Adjust for Android status bar
   },
+  averagesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  timerText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4B5563',
+    marginLeft: 4,
+  },
   sliderContainer: {
     marginTop: 20,
     paddingHorizontal: 16,
@@ -380,6 +638,130 @@ const styles = StyleSheet.create({
   },
   slider: {
     width: '100%',
+  },
+
+  averagesContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+  averagesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  averageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  averageBox: {
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    width: '30%',
+  },
+  averageValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  averageLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  // Add these styles to your StyleSheet
+  notificationIconContainer: {
+    position: 'relative',
+    marginLeft: 'auto',
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  notificationPanel: {
+    position: 'absolute',
+    top: 70,
+    right: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: 300,
+    maxHeight: 400,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  notificationPanelTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  closeButton: {
+    fontSize: 24,
+    color: '#6B7280',
+    paddingHorizontal: 8,
+  },
+  notificationList: {
+    maxHeight: 300,
+  },
+  notificationItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  unreadNotification: {
+    backgroundColor: '#FEF3C7',
+  },
+  notificationMessage: {
+    color: '#111827',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  notificationTime: {
+    color: '#6B7280',
+    fontSize: 12,
+  },
+  noNotificationsText: {
+    color: '#6B7280',
+    textAlign: 'center',
+    padding: 16,
+  },
+  
+  notificationActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  clearButton: {
+    padding: 4,
   },
   scrollView: { flex: 1 },
   container: { flex: 1, padding: 16 },
@@ -421,7 +803,7 @@ const styles = StyleSheet.create({
   calendarContainer: { width: '90%', backgroundColor: 'white', borderRadius: 16, padding: 16, maxHeight: '80%' },
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   calendarTitle: { fontSize: 18, fontWeight: 'bold' },
-  closeButton: { fontSize: 20, color: '#6B7280' },
+  // closeButton: { fontSize: 20, color: '#6B7280' },
   calendar: { width: '100%' },
   calendarNavigation: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   calendarNavButton: { fontSize: 18, fontWeight: 'bold', color: '#4ADE80', padding: 8 },
