@@ -18,13 +18,17 @@ import Slider from '@react-native-community/slider';
 import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
 import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
+import PlantCareBot from './PlantCareBot'; // Import your chatbot component
 
 const Home = () => {
   const [showSidebar, setShowSidebar] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const [isDeviceOnline, setIsDeviceOnline] = useState(true);
   const [notificationsViewed, setNotificationsViewed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
+  const [chatbotKey, setChatbotKey] = useState(0); // For resetting chatbot state
   const [notifications, setNotifications] = useState<Array<{
     id: string;
     message: string;
@@ -103,7 +107,7 @@ const Home = () => {
           ...prev
         ]);
       }
-    }, 30000); 
+    }, 30000);
 
     return () => clearInterval(checkInterval);
   }, [lastUpdateTime, isDeviceOnline]);
@@ -241,29 +245,29 @@ const Home = () => {
 
       {/* Notification Panel */}
       {showNotifications && (
-  <View style={styles.notificationPanel}>
-    <View style={styles.notificationHeader}>
-      <Text style={styles.notificationPanelTitle}>Notifications</Text>
-      <View style={styles.notificationActions}>
-        <TouchableOpacity 
-          onPress={() => {
-            setNotifications([]);
-            setNotificationsViewed(true);
-          }}
-          style={styles.clearButton}
-        >
-          <Svg width="20" height="20" viewBox="0 0 24 24">
-            <Path
-              d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
-              fill="#6B7280"
-            />
-          </Svg>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowNotifications(false)}>
-          <Text style={styles.closeButton}>×</Text>
-        </TouchableOpacity>
-      </View>
-    
+        <View style={styles.notificationPanel}>
+          <View style={styles.notificationHeader}>
+            <Text style={styles.notificationPanelTitle}>Notifications</Text>
+            <View style={styles.notificationActions}>
+              <TouchableOpacity
+                onPress={() => {
+                  setNotifications([]);
+                  setNotificationsViewed(true);
+                }}
+                style={styles.clearButton}
+              >
+                <Svg width="20" height="20" viewBox="0 0 24 24">
+                  <Path
+                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                    fill="#6B7280"
+                  />
+                </Svg>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                <Text style={styles.closeButton}>×</Text>
+              </TouchableOpacity>
+            </View>
+
           </View>
           <ScrollView style={styles.notificationList}>
             {notifications.length === 0 ? (
@@ -494,8 +498,46 @@ const Home = () => {
 
         </View>
 
-      </ScrollView>
+        
+      </ScrollView >
+      <TouchableOpacity
+        style={styles.chatbotIcon}
+        onPress={() => {
+          setShowChatbot(true);
+          setChatbotKey(prev => prev + 1); // Reset chatbot state on open
+        }}
+      >
+        <Svg height="24" width="24" viewBox="0 0 24 24">
+          <Path
+            d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 14h12v2H6v-2zm0-3h12v2H6v-2zm0-3h12v2H6V8z"
+            fill="#FFFFFF"
+          />
+        </Svg>
+      </TouchableOpacity>
 
+      {/* Chatbot Modal */}
+      <Modal
+        visible={showChatbot}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowChatbot(false)}
+      >
+        <View style={styles.chatbotModal}>
+          {/* Header with Close Button */}
+          <View style={styles.chatbotHeader}>
+            <Text style={styles.chatbotTitle}>Plant Care Assistant</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowChatbot(false)}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Chatbot Component */}
+          <PlantCareBot key={chatbotKey} />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -754,7 +796,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 16,
   },
-  
+
   notificationActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -762,6 +804,59 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  chatbotBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatbotBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  chatbotIcon: {
+    position: 'absolute', // Position it absolutely
+    bottom: 20, // Distance from the bottom
+    right: 20, // Distance from the right
+    width: 56, // Size of the icon container
+    height: 56, // Size of the icon container
+    borderRadius: 28, // Make it circular
+    backgroundColor: '#4ADE80', // Green background color
+    justifyContent: 'center', // Center the icon vertically
+    alignItems: 'center', // Center the icon horizontally
+    shadowColor: '#000', // Add shadow for better visibility
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4, // For Android shadow
+  },
+  chatbotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  chatbotTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  chatbotModal: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#6B7280',
   },
   scrollView: { flex: 1 },
   container: { flex: 1, padding: 16 },
@@ -798,7 +893,7 @@ const styles = StyleSheet.create({
   activeNavItem: { backgroundColor: 'white', borderRadius: 24 },
   navText: { fontSize: 14, color: '#6B7280' },
   activeNavText: { color: '#111827', fontWeight: 'bold' },
-  chatbotIcon: { position: 'absolute', bottom: 20, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+  // chatbotIcon: { position: 'absolute', bottom: 20, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center' },
   calendarContainer: { width: '90%', backgroundColor: 'white', borderRadius: 16, padding: 16, maxHeight: '80%' },
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
