@@ -1,30 +1,42 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Dimensions, TouchableOpacity, Modal, StatusBar, Platform, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Dimensions,
+  TouchableOpacity,
+  Modal,
+  StatusBar,
+  Platform,
+  Animated,
+
+} from 'react-native';
+import Slider from '@react-native-community/slider';
+
 import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
-import { ref, onValue } from 'firebase/database';  // Add onValue
+import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
 
 const Home = () => {
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [showSidebar, setShowSidebar] = useState(false);
   const [sensorData, setSensorData] = useState({
     humidity: 0,
     temperature: 0,
     soil_moisture: 0,
-    relay_status: "OFF",
+    relay_status: 'OFF',
   });
+  const [soilMoistureThreshold, setSoilMoistureThreshold] = useState(50); // Default threshold
 
   // Animation value for sidebar
-  const sidebarAnim = useRef(new Animated.Value(-250)).current; // Initial position off-screen
+  const sidebarAnim = useRef(new Animated.Value(-250)).current;
 
   // Fetch real-time data from Firebase
   useEffect(() => {
-    // Create a reference to your database path
+    // Fetch sensor data
     const dbRef = ref(database, 'sensor_data');
-  
-    // Set up the real-time listener
-    const unsubscribe = onValue(dbRef, (snapshot) => {
+    const unsubscribeSensorData = onValue(dbRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         setSensorData({
@@ -35,44 +47,57 @@ const Home = () => {
         });
       }
     });
-  
-    // Cleanup the listener on unmount
-    return () => unsubscribe();
+
+    // Fetch threshold from Firebase
+    const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
+    const unsubscribeThreshold = onValue(thresholdRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setSoilMoistureThreshold(snapshot.val());
+      }
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubscribeSensorData();
+      unsubscribeThreshold();
+    };
   }, []);
+
+  // Update threshold in Firebase when slider changes
+  const handleThresholdChange = (value: number) => {
+    setSoilMoistureThreshold(value); // Update local state
+    const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
+    set(thresholdRef, value); // Update Firebase
+  };
 
   const toggleSidebar = () => {
     if (showSidebar) {
-      // Close sidebar with animation
       Animated.timing(sidebarAnim, {
-        toValue: -250, // Move sidebar off-screen
-        duration: 300, // Animation duration in milliseconds
-        useNativeDriver: true, // Use native driver for better performance
-      }).start(() => setShowSidebar(false)); // Update state after animation completes
+        toValue: -250,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setShowSidebar(false));
     } else {
-      // Open sidebar with animation
       setShowSidebar(true);
       Animated.timing(sidebarAnim, {
-        toValue: 0, // Move sidebar on-screen
+        toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start();
     }
   };
 
-  const formatDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Dark Status Bar */}
       <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
 
-      {/* Sidebar with Animation */}
+      {/* Sidebar */}
       {showSidebar && (
         <Animated.View
           style={[
             styles.sidebar,
             {
-              transform: [{ translateX: sidebarAnim }], // Animate the sidebar's horizontal position
+              transform: [{ translateX: sidebarAnim }],
             },
           ]}
         >
@@ -82,7 +107,7 @@ const Home = () => {
             </TouchableOpacity>
             <Text style={styles.sidebarTitle}>Z-Tech</Text>
           </View>
-          
+
           <View style={styles.sidebarMenu}>
             <TouchableOpacity style={styles.sidebarMenuItem}>
               <Text style={styles.sidebarMenuText}>Profile</Text>
@@ -94,7 +119,7 @@ const Home = () => {
               <Text style={styles.sidebarMenuText}>Contact Support</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.sidebarFooter}>
             <TouchableOpacity style={styles.sidebarFooterItem}>
               <Text style={styles.sidebarFooterText}>FAQ</Text>
@@ -128,11 +153,16 @@ const Home = () => {
               <Text style={styles.deviceInfoValue}>Living Room</Text>
             </View>
             <View style={styles.deviceInfoRow}>
-              <Text style={styles.deviceInfoLabel}>Condition</Text>
+              <Text style={styles.deviceInfoLabel}>Motor status</Text>
               <View style={styles.conditionIndicator}>
-                <View style={[styles.statusDot, { backgroundColor: sensorData.relay_status === "ON" ? '#4ADE80' : '#EF4444' }]} />
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: sensorData.relay_status === 'ON' ? '#4ADE80' : '#EF4444' },
+                  ]}
+                />
                 <Text style={styles.deviceInfoValue}>
-                  {sensorData.relay_status === "ON" ? 'Active' : 'Inactive'}
+                  {sensorData.relay_status === 'ON' ? 'Active' : 'Inactive'}
                 </Text>
               </View>
             </View>
@@ -153,7 +183,7 @@ const Home = () => {
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#FACC15' }]} />
-                  <Text style={styles.legendText}>Alarm</Text>
+                  <Text style={styles.legendText}>Warning</Text>
                 </View>
               </View>
             </View>
@@ -164,21 +194,24 @@ const Home = () => {
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d={`M 50 5 A 45 45 0 ${sensorData.soil_moisture > 50 ? 1 : 0} 1 50 95`}
-                    stroke="#4ADE80"
+                    d={calculateArc(sensorData.soil_moisture, 100).path}
+                    stroke={getSoilMoistureColor(sensorData.soil_moisture, soilMoistureThreshold)}
                     strokeWidth="10"
                     fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>{sensorData.soil_moisture}%</Text>
+                <Text style={styles.gaugeLabel}>
+                  {calculateArc(sensorData.soil_moisture, 100).percentage}%
+                </Text>
                 <Text style={styles.gaugeDescription}>Soil moisture</Text>
               </View>
+
               <View style={styles.gaugeItem}>
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d={`M 50 5 A 45 45 0 ${sensorData.temperature > 25 ? 1 : 0} 1 50 95`}
-                    stroke="#3B82F6"
+                    d={calculateArc(sensorData.temperature, 50).path}
+                    stroke={getTemperatureColor(sensorData.temperature)}
                     strokeWidth="10"
                     fill="none"
                   />
@@ -186,93 +219,73 @@ const Home = () => {
                 <Text style={styles.gaugeLabel}>{sensorData.temperature}°C</Text>
                 <Text style={styles.gaugeDescription}>Temperature</Text>
               </View>
+
+              {/* Humidity Gauge */}
               <View style={styles.gaugeItem}>
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d={`M 50 5 A 45 45 0 ${sensorData.humidity > 50 ? 1 : 0} 1 50 95`}
-                    stroke="#FACC15"
+                    d={calculateArc(sensorData.humidity, 100).path}
+                    stroke={getHumidityColor(sensorData.humidity)}
                     strokeWidth="10"
                     fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>{sensorData.humidity}%</Text>
+                <Text style={styles.gaugeLabel}>
+                  {calculateArc(sensorData.humidity, 100).percentage}%
+                </Text>
                 <Text style={styles.gaugeDescription}>Humidity</Text>
               </View>
             </View>
-          </View>
 
-          {/* Plant Condition Chart */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.titleWithDateContainer}>
-                <Text style={styles.cardTitle}>Average plant condition</Text>
-                <Text style={styles.selectedDateText}>{formatDate(selectedDate)}</Text>
-              </View>
-              <TouchableOpacity style={styles.calendarIconContainer} onPress={() => setShowCalendar(true)}>
-                <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <Path d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M16 2V6" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M8 2V6" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M3 10H21" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.barChartContainer}>
-              <BarChart />
-            </View>
-          </View>
-
-          {/* Bottom Navigation */}
-          <View style={styles.bottomNav}>
-            <TouchableOpacity style={styles.navItem}>
-              <Text style={styles.navText}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
-              <Text style={[styles.navText, styles.activeNavText]}>Dashboard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem}>
-              <Text style={styles.navText}>Templates</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Chatbot Icon */}
-      <TouchableOpacity style={styles.chatbotIcon} onPress={() => console.log('Chatbot clicked')}>
-        <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <Circle cx="12" cy="12" r="10" fill="#4ADE80" />
-          <Circle cx="12" cy="10" r="3" fill="white" />
-          <Rect x="8" y="15" width="8" height="3" rx="1.5" fill="white" />
-        </Svg>
-      </TouchableOpacity>
-
-      {/* Calendar Modal */}
-      {showCalendar && (
-        <Modal transparent={true} visible={showCalendar} onRequestClose={() => setShowCalendar(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.calendarContainer}>
-              <View style={styles.calendarHeader}>
-                <Text style={styles.calendarTitle}>Select Date</Text>
-                <TouchableOpacity onPress={() => setShowCalendar(false)}>
-                  <Text style={styles.closeButton}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <SimplifiedCalendar
-                onSelectDate={(date) => {
-                  setSelectedDate(date);
-                  setShowCalendar(false);
-                }}
-                selectedDate={selectedDate}
+            {/* Soil Moisture Threshold Slider */}
+            <View style={styles.sliderContainer}>
+              <Text style={styles.sliderLabel}>
+                Soil Moisture Threshold: {soilMoistureThreshold}%
+              </Text>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={100}
+                step={1}
+                value={soilMoistureThreshold}
+                onValueChange={handleThresholdChange}
+                minimumTrackTintColor="#4ADE80"
+                maximumTrackTintColor="#E5E7EB"
+                thumbTintColor="#4ADE80"
               />
             </View>
           </View>
-        </Modal>
-      )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
+const getSoilMoistureColor = (current: number, threshold: number) => {
+  return current <= threshold + 5 ? '#4ADE80' : '#FACC15';
+};
+const getTemperatureColor = (temp: number) => {
+  if (temp > 35) return '#FACC15'; // Alarm
+  if (temp >= 20 && temp <= 35) return '#4ADE80'; // Healthy
+  return '#3B82F6'; // Low
+};
 
+const getHumidityColor = (humidity: number) => {
+  if (humidity > 70) return '#FACC15'; // Alarm
+  if (humidity >= 60 && humidity <= 70) return '#4ADE80'; // Healthy
+  return '#3B82F6'; // Low
+};
+const calculateArc = (value: number, max: number) => {
+  const percentage = Math.min(value / max, 1);
+  const angle = percentage * 360;
+  const radians = (angle * Math.PI) / 180;
+  const x = 50 + 45 * Math.sin(radians);
+  const y = 50 - 45 * Math.cos(radians);
+  return {
+    path: `M 50 5 A 45 45 0 ${angle > 180 ? 1 : 0} 1 ${x} ${y}`,
+    percentage: Math.round(percentage * 100)
+  };
+};
 const SimplifiedCalendar = ({ onSelectDate, selectedDate }: { onSelectDate: (date: Date) => void; selectedDate: Date }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -355,6 +368,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Adjust for Android status bar
   },
+  sliderContainer: {
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  sliderLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  slider: {
+    width: '100%',
+  },
   scrollView: { flex: 1 },
   container: { flex: 1, padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
@@ -410,7 +436,7 @@ const styles = StyleSheet.create({
   sidebar: {
     width: 250,
     backgroundColor: '#F3F4F6',
-    height: Dimensions.get('window').height, 
+    height: Dimensions.get('window').height,
     padding: 20,
     position: 'absolute',
     left: 0,
