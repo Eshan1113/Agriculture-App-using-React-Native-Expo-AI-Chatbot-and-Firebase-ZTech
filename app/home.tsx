@@ -18,6 +18,7 @@ import Slider from '@react-native-community/slider';
 import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
 import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
+import PlantCareBot from './PlantCareBot'; // Import your chatbot component
 
 const Home = () => {
   const [showSidebar, setShowSidebar] = useState(false);
@@ -26,6 +27,8 @@ const Home = () => {
   const [isDeviceOnline, setIsDeviceOnline] = useState(true);
   const [notificationsViewed, setNotificationsViewed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
+  const [chatbotKey, setChatbotKey] = useState(0); // For resetting chatbot state
   const [notifications, setNotifications] = useState<Array<{
     id: string;
     message: string;
@@ -497,24 +500,46 @@ const Home = () => {
 
         
       </ScrollView >
-      {/* Chatbot Icon */}
       <TouchableOpacity
-          style={styles.chatbotIcon}
-          onPress={() => {
-            // Add your chatbot opening logic here
-            console.log('Chatbot opened');
-          }}
-        >
-          <Svg height="24" width="24" viewBox="0 0 24 24">
-            <Path
-              d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 14h12v2H6v-2zm0-3h12v2H6v-2zm0-3h12v2H6V8z"
-              fill="#FFFFFF"
-            />
-          </Svg>
-        </TouchableOpacity>
+        style={styles.chatbotIcon}
+        onPress={() => {
+          setShowChatbot(true);
+          setChatbotKey(prev => prev + 1); // Reset chatbot state on open
+        }}
+      >
+        <Svg height="24" width="24" viewBox="0 0 24 24">
+          <Path
+            d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 14h12v2H6v-2zm0-3h12v2H6v-2zm0-3h12v2H6V8z"
+            fill="#FFFFFF"
+          />
+        </Svg>
+      </TouchableOpacity>
+
+      {/* Chatbot Modal */}
+      <Modal
+        visible={showChatbot}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowChatbot(false)}
+      >
+        <View style={styles.chatbotModal}>
+          {/* Header with Close Button */}
+          <View style={styles.chatbotHeader}>
+            <Text style={styles.chatbotTitle}>Plant Care Assistant</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowChatbot(false)}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Chatbot Component */}
+          <PlantCareBot key={chatbotKey} />
+        </View>
+      </Modal>
     </SafeAreaView>
   );
-
 };
 const getSoilMoistureColor = (current: number, threshold: number) => {
   return current <= threshold + 5 ? '#4ADE80' : '#FACC15';
@@ -811,6 +836,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4, // For Android shadow
+  },
+  chatbotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  chatbotTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  chatbotModal: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#6B7280',
   },
   scrollView: { flex: 1 },
   container: { flex: 1, padding: 16 },
