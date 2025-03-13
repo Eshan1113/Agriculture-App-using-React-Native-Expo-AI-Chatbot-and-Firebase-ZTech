@@ -1,14 +1,44 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, Dimensions, TouchableOpacity, Modal, StatusBar, Platform, Animated } from 'react-native';
 import { Svg, Circle, Path, Rect } from 'react-native-svg';
+import { database } from './firebaseConfig';
+import { ref, onValue } from 'firebase/database';  // Add onValue
 
 const Home = () => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showSidebar, setShowSidebar] = useState(false);
+  const [sensorData, setSensorData] = useState({
+    humidity: 0,
+    temperature: 0,
+    soil_moisture: 0,
+    relay_status: "OFF",
+  });
 
   // Animation value for sidebar
   const sidebarAnim = useRef(new Animated.Value(-250)).current; // Initial position off-screen
+
+  // Fetch real-time data from Firebase
+  useEffect(() => {
+    // Create a reference to your database path
+    const dbRef = ref(database, 'sensor_data');
+  
+    // Set up the real-time listener
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setSensorData({
+          humidity: data.humidity,
+          temperature: data.temperature,
+          soil_moisture: data.soil_moisture,
+          relay_status: data.relay_status,
+        });
+      }
+    });
+  
+    // Cleanup the listener on unmount
+    return () => unsubscribe();
+  }, []);
 
   const toggleSidebar = () => {
     if (showSidebar) {
@@ -100,8 +130,10 @@ const Home = () => {
             <View style={styles.deviceInfoRow}>
               <Text style={styles.deviceInfoLabel}>Condition</Text>
               <View style={styles.conditionIndicator}>
-                <View style={[styles.statusDot, { backgroundColor: '#4ADE80' }]} />
-                <Text style={styles.deviceInfoValue}>Good</Text>
+                <View style={[styles.statusDot, { backgroundColor: sensorData.relay_status === "ON" ? '#4ADE80' : '#EF4444' }]} />
+                <Text style={styles.deviceInfoValue}>
+                  {sensorData.relay_status === "ON" ? 'Active' : 'Inactive'}
+                </Text>
               </View>
             </View>
           </View>
@@ -132,33 +164,39 @@ const Home = () => {
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d="M 50 5 A 45 45 0 1 1 50 95"
-                    stroke="#4ADE80" strokeWidth="10" fill="none"
+                    d={`M 50 5 A 45 45 0 ${sensorData.soil_moisture > 50 ? 1 : 0} 1 50 95`}
+                    stroke="#4ADE80"
+                    strokeWidth="10"
+                    fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>25%</Text>
+                <Text style={styles.gaugeLabel}>{sensorData.soil_moisture}%</Text>
                 <Text style={styles.gaugeDescription}>Soil moisture</Text>
               </View>
               <View style={styles.gaugeItem}>
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d="M 50 5 A 45 45 0 1 1 50 95"
-                    stroke="#3B82F6" strokeWidth="10" fill="none"
+                    d={`M 50 5 A 45 45 0 ${sensorData.temperature > 25 ? 1 : 0} 1 50 95`}
+                    stroke="#3B82F6"
+                    strokeWidth="10"
+                    fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>18%</Text>
+                <Text style={styles.gaugeLabel}>{sensorData.temperature}°C</Text>
                 <Text style={styles.gaugeDescription}>Temperature</Text>
               </View>
               <View style={styles.gaugeItem}>
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d="M 50 5 A 45 45 0 1 1 50 95"
-                    stroke="#FACC15" strokeWidth="10" fill="none"
+                    d={`M 50 5 A 45 45 0 ${sensorData.humidity > 50 ? 1 : 0} 1 50 95`}
+                    stroke="#FACC15"
+                    strokeWidth="10"
+                    fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>75%</Text>
+                <Text style={styles.gaugeLabel}>{sensorData.humidity}%</Text>
                 <Text style={styles.gaugeDescription}>Humidity</Text>
               </View>
             </View>
@@ -308,6 +346,8 @@ const BarChart = () => {
     </View>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   safeArea: {
