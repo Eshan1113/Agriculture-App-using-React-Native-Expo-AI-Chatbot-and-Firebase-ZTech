@@ -1,30 +1,51 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Dimensions, TouchableOpacity, Modal, StatusBar, Platform, Animated } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Dimensions,
+  TouchableOpacity,
+  Modal,
+  StatusBar,
+  Platform,
+  Animated,
+
+} from 'react-native';
+import Slider from '@react-native-community/slider';
+
 import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
-import { ref, onValue } from 'firebase/database';  // Add onValue
+import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
 
 const Home = () => {
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [showSidebar, setShowSidebar] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [isDeviceOnline, setIsDeviceOnline] = useState(true);
+  const [notificationsViewed, setNotificationsViewed] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    message: string;
+    timestamp: Date;
+    isRead: boolean;
+  }>>([]);
   const [sensorData, setSensorData] = useState({
     humidity: 0,
     temperature: 0,
     soil_moisture: 0,
-    relay_status: "OFF",
+    relay_status: 'OFF',
   });
+  const [soilMoistureThreshold, setSoilMoistureThreshold] = useState(50); // Default threshold
 
   // Animation value for sidebar
-  const sidebarAnim = useRef(new Animated.Value(-250)).current; // Initial position off-screen
+  const sidebarAnim = useRef(new Animated.Value(-250)).current;
 
   // Fetch real-time data from Firebase
   useEffect(() => {
-    // Create a reference to your database path
     const dbRef = ref(database, 'sensor_data');
-  
-    // Set up the real-time listener
-    const unsubscribe = onValue(dbRef, (snapshot) => {
+    const unsubscribeSensorData = onValue(dbRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         setSensorData({
@@ -33,46 +54,158 @@ const Home = () => {
           soil_moisture: data.soil_moisture,
           relay_status: data.relay_status,
         });
+        // Update last update time whenever new data arrives
+        setLastUpdateTime(new Date());
+        setIsDeviceOnline(true);
       }
     });
-  
-    // Cleanup the listener on unmount
-    return () => unsubscribe();
+
+    // Fetch threshold from Firebase
+    const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
+    const unsubscribeThreshold = onValue(thresholdRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setSoilMoistureThreshold(snapshot.val());
+      }
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubscribeSensorData();
+      unsubscribeThreshold();
+    };
   }, []);
+
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const now = new Date();
+      const diffMinutes = (now.getTime() - lastUpdateTime.getTime()) / 1000 / 60;
+
+      if (diffMinutes > 1 && isDeviceOnline) {
+        setIsDeviceOnline(false);
+        setNotifications(prev => [
+          {
+            id: Date.now().toString(),
+            message: 'Device offline - No recent updates',
+            timestamp: new Date(),
+            isRead: false
+          },
+          ...prev
+        ]);
+      } else if (diffMinutes <= 1 && !isDeviceOnline) {
+        setIsDeviceOnline(true);
+        setNotifications(prev => [
+          {
+            id: Date.now().toString(),
+            message: 'Device back online',
+            timestamp: new Date(),
+            isRead: false
+          },
+          ...prev
+        ]);
+      }
+    }, 30000); 
+
+    return () => clearInterval(checkInterval);
+  }, [lastUpdateTime, isDeviceOnline]);
+
+
+  // Update threshold in Firebase when slider changes
+  const handleThresholdChange = (value: number) => {
+    setSoilMoistureThreshold(value); // Update local state
+    const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
+    set(thresholdRef, value); // Update Firebase
+  };
 
   const toggleSidebar = () => {
     if (showSidebar) {
-      // Close sidebar with animation
       Animated.timing(sidebarAnim, {
-        toValue: -250, // Move sidebar off-screen
-        duration: 300, // Animation duration in milliseconds
-        useNativeDriver: true, // Use native driver for better performance
-      }).start(() => setShowSidebar(false)); // Update state after animation completes
+        toValue: -250,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setShowSidebar(false));
     } else {
-      // Open sidebar with animation
       setShowSidebar(true);
       Animated.timing(sidebarAnim, {
-        toValue: 0, // Move sidebar on-screen
+        toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start();
     }
   };
 
-  const formatDate = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const [sensorReadings, setSensorReadings] = useState<Array<{
+    temperature: number;
+    soil_moisture: number;
+    humidity: number;
+  }>>([]);
+  const [averages, setAverages] = useState<{
+    temperature: number;
+    soil_moisture: number;
+    humidity: number;
+  }>({ temperature: 0, soil_moisture: 0, humidity: 0 });
+
+  // Add this useEffect for calculating averages
+  useEffect(() => {
+    if (!isDeviceOnline) return; // Stop calculating if device is offline
+
+    const newReading = {
+      temperature: sensorData.temperature,
+      soil_moisture: sensorData.soil_moisture,
+      humidity: sensorData.humidity
+    };
+
+    setSensorReadings(prev => {
+      const updatedReadings = [...prev, newReading];
+
+      if (updatedReadings.length === 10) {
+        const avgTemp = updatedReadings.reduce((sum, reading) => sum + reading.temperature, 0) / 10;
+        const avgMoisture = updatedReadings.reduce((sum, reading) => sum + reading.soil_moisture, 0) / 10;
+        const avgHumidity = updatedReadings.reduce((sum, reading) => sum + reading.humidity, 0) / 10;
+
+        setAverages({
+          temperature: avgTemp,
+          soil_moisture: avgMoisture,
+          humidity: avgHumidity
+        });
+
+        return [];
+      }
+      return updatedReadings;
+    });
+  }, [sensorData, isDeviceOnline]); // This will trigger every time sensorData updates
+
+  // Add this state for the timer
+  const [timer, setTimer] = useState(10);
+
+  // Add this useEffect for the countdown timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimer(prev => (prev > 0 ? prev - 1 : 10));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (notificationsViewed) {
+      setNotifications(prev =>
+        prev.map(n => ({ ...n, isRead: true }))
+      );
+      setNotificationsViewed(false);
+    }
+  }, [notificationsViewed]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Dark Status Bar */}
       <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
 
-      {/* Sidebar with Animation */}
+      {/* Sidebar */}
       {showSidebar && (
         <Animated.View
           style={[
             styles.sidebar,
             {
-              transform: [{ translateX: sidebarAnim }], // Animate the sidebar's horizontal position
+              transform: [{ translateX: sidebarAnim }],
             },
           ]}
         >
@@ -82,7 +215,7 @@ const Home = () => {
             </TouchableOpacity>
             <Text style={styles.sidebarTitle}>Z-Tech</Text>
           </View>
-          
+
           <View style={styles.sidebarMenu}>
             <TouchableOpacity style={styles.sidebarMenuItem}>
               <Text style={styles.sidebarMenuText}>Profile</Text>
@@ -94,7 +227,7 @@ const Home = () => {
               <Text style={styles.sidebarMenuText}>Contact Support</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.sidebarFooter}>
             <TouchableOpacity style={styles.sidebarFooterItem}>
               <Text style={styles.sidebarFooterText}>FAQ</Text>
@@ -106,16 +239,104 @@ const Home = () => {
         </Animated.View>
       )}
 
+      {/* Notification Panel */}
+      {showNotifications && (
+  <View style={styles.notificationPanel}>
+    <View style={styles.notificationHeader}>
+      <Text style={styles.notificationPanelTitle}>Notifications</Text>
+      <View style={styles.notificationActions}>
+        <TouchableOpacity 
+          onPress={() => {
+            setNotifications([]);
+            setNotificationsViewed(true);
+          }}
+          style={styles.clearButton}
+        >
+          <Svg width="20" height="20" viewBox="0 0 24 24">
+            <Path
+              d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+              fill="#6B7280"
+            />
+          </Svg>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowNotifications(false)}>
+          <Text style={styles.closeButton}>×</Text>
+        </TouchableOpacity>
+      </View>
+    
+          </View>
+          <ScrollView style={styles.notificationList}>
+            {notifications.length === 0 ? (
+              <Text style={styles.noNotificationsText}>No notifications</Text>
+            ) : (
+              notifications.map((notification) => (
+                <View
+                  key={notification.id}
+                  style={[
+                    styles.notificationItem,
+                    !notification.isRead && styles.unreadNotification
+                  ]}
+                >
+                  <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  <Text style={styles.notificationTime}>
+                    {notification.timestamp.toLocaleTimeString()}
+                  </Text>
+                </View>
+              ))
+            )}
+            {/* Add Device Status Notification */}
+            {!isDeviceOnline && (
+              <View style={[styles.notificationItem, styles.unreadNotification]}>
+                <Text style={styles.notificationMessage}>
+                  ⚠️ Device offline - Last update: {lastUpdateTime.toLocaleTimeString()}
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Main Content */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
-          {/* Header */}
+          {/* Header with Notification Bell */}
           <View style={styles.header}>
             <TouchableOpacity onPress={toggleSidebar} style={styles.logoContainer}>
               <Text style={styles.logoText}>Z</Text>
             </TouchableOpacity>
             <Text style={styles.dashboardTitle}>Dashboard</Text>
+            <TouchableOpacity
+              style={styles.notificationIconContainer}
+              onPress={() => {
+                setShowNotifications(!showNotifications);
+                if (!showNotifications) {
+                  // Mark all notifications as read when opening
+                  setNotifications(prev =>
+                    prev.map(n => ({ ...n, isRead: true }))
+                  );
+                  setNotificationsViewed(true);
+                }
+              }}
+            >
+              <Svg height="24" width="24" viewBox="0 0 24 24">
+                <Path
+                  d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+                  fill={
+                    notifications.some(n => !n.isRead) ? '#FACC15' : '#4B5563'
+                  }
+                />
+              </Svg>
+              {notifications.some(n => !n.isRead) && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>
+                    {notifications.filter(n => !n.isRead).length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
+
+
 
           {/* Device Info Card */}
           <View style={styles.card}>
@@ -128,12 +349,52 @@ const Home = () => {
               <Text style={styles.deviceInfoValue}>Living Room</Text>
             </View>
             <View style={styles.deviceInfoRow}>
-              <Text style={styles.deviceInfoLabel}>Condition</Text>
+              <Text style={styles.deviceInfoLabel}>Motor status</Text>
               <View style={styles.conditionIndicator}>
-                <View style={[styles.statusDot, { backgroundColor: sensorData.relay_status === "ON" ? '#4ADE80' : '#EF4444' }]} />
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: sensorData.relay_status === 'ON' ? '#4ADE80' : '#EF4444' },
+                  ]}
+                />
                 <Text style={styles.deviceInfoValue}>
-                  {sensorData.relay_status === "ON" ? 'Active' : 'Inactive'}
+                  {sensorData.relay_status === 'ON' ? 'Active' : 'Inactive'}
                 </Text>
+              </View>
+            </View>
+          </View>
+
+
+
+          <View style={styles.averagesContainer}>
+            <View style={styles.averagesHeader}>
+              <Text style={styles.averagesTitle}>10-Second Averages</Text>
+              <View style={styles.timerContainer}>
+                <Svg height="20" width="20" viewBox="0 0 24 24">
+                  <Path
+                    d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"
+                    fill="#4B5563"
+                  />
+                  <Path
+                    d="M13 7h-2v6h6v-2h-4z"
+                    fill="#4B5563"
+                  />
+                </Svg>
+                <Text style={styles.timerText}>{timer}s</Text>
+              </View>
+            </View>
+            <View style={styles.averageRow}>
+              <View style={styles.averageBox}>
+                <Text style={styles.averageValue}>{averages.temperature.toFixed(1)}°C</Text>
+                <Text style={styles.averageLabel}>Temperature</Text>
+              </View>
+              <View style={styles.averageBox}>
+                <Text style={styles.averageValue}>{averages.soil_moisture.toFixed(1)}%</Text>
+                <Text style={styles.averageLabel}>Soil Moisture</Text>
+              </View>
+              <View style={styles.averageBox}>
+                <Text style={styles.averageValue}>{averages.humidity.toFixed(1)}%</Text>
+                <Text style={styles.averageLabel}>Humidity</Text>
               </View>
             </View>
           </View>
@@ -153,10 +414,12 @@ const Home = () => {
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: '#FACC15' }]} />
-                  <Text style={styles.legendText}>Alarm</Text>
+                  <Text style={styles.legendText}>Warning</Text>
                 </View>
               </View>
             </View>
+
+
 
             {/* Gauges */}
             <View style={styles.gaugesContainer}>
@@ -164,21 +427,24 @@ const Home = () => {
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d={`M 50 5 A 45 45 0 ${sensorData.soil_moisture > 50 ? 1 : 0} 1 50 95`}
-                    stroke="#4ADE80"
+                    d={calculateArc(sensorData.soil_moisture, 100).path}
+                    stroke={getSoilMoistureColor(sensorData.soil_moisture, soilMoistureThreshold)}
                     strokeWidth="10"
                     fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>{sensorData.soil_moisture}%</Text>
+                <Text style={styles.gaugeLabel}>
+                  {calculateArc(sensorData.soil_moisture, 100).percentage}%
+                </Text>
                 <Text style={styles.gaugeDescription}>Soil moisture</Text>
               </View>
+
               <View style={styles.gaugeItem}>
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d={`M 50 5 A 45 45 0 ${sensorData.temperature > 25 ? 1 : 0} 1 50 95`}
-                    stroke="#3B82F6"
+                    d={calculateArc(sensorData.temperature, 50).path}
+                    stroke={getTemperatureColor(sensorData.temperature)}
                     strokeWidth="10"
                     fill="none"
                   />
@@ -186,93 +452,78 @@ const Home = () => {
                 <Text style={styles.gaugeLabel}>{sensorData.temperature}°C</Text>
                 <Text style={styles.gaugeDescription}>Temperature</Text>
               </View>
+
+              {/* Humidity Gauge */}
               <View style={styles.gaugeItem}>
                 <Svg height="80" width="80" viewBox="0 0 100 100">
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
-                    d={`M 50 5 A 45 45 0 ${sensorData.humidity > 50 ? 1 : 0} 1 50 95`}
-                    stroke="#FACC15"
+                    d={calculateArc(sensorData.humidity, 100).path}
+                    stroke={getHumidityColor(sensorData.humidity)}
                     strokeWidth="10"
                     fill="none"
                   />
                 </Svg>
-                <Text style={styles.gaugeLabel}>{sensorData.humidity}%</Text>
+                <Text style={styles.gaugeLabel}>
+                  {calculateArc(sensorData.humidity, 100).percentage}%
+                </Text>
                 <Text style={styles.gaugeDescription}>Humidity</Text>
               </View>
             </View>
-          </View>
 
-          {/* Plant Condition Chart */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.titleWithDateContainer}>
-                <Text style={styles.cardTitle}>Average plant condition</Text>
-                <Text style={styles.selectedDateText}>{formatDate(selectedDate)}</Text>
-              </View>
-              <TouchableOpacity style={styles.calendarIconContainer} onPress={() => setShowCalendar(true)}>
-                <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <Path d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M16 2V6" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M8 2V6" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M3 10H21" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </Svg>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.barChartContainer}>
-              <BarChart />
-            </View>
-          </View>
-
-          {/* Bottom Navigation */}
-          <View style={styles.bottomNav}>
-            <TouchableOpacity style={styles.navItem}>
-              <Text style={styles.navText}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.navItem, styles.activeNavItem]}>
-              <Text style={[styles.navText, styles.activeNavText]}>Dashboard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem}>
-              <Text style={styles.navText}>Templates</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Chatbot Icon */}
-      <TouchableOpacity style={styles.chatbotIcon} onPress={() => console.log('Chatbot clicked')}>
-        <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <Circle cx="12" cy="12" r="10" fill="#4ADE80" />
-          <Circle cx="12" cy="10" r="3" fill="white" />
-          <Rect x="8" y="15" width="8" height="3" rx="1.5" fill="white" />
-        </Svg>
-      </TouchableOpacity>
-
-      {/* Calendar Modal */}
-      {showCalendar && (
-        <Modal transparent={true} visible={showCalendar} onRequestClose={() => setShowCalendar(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.calendarContainer}>
-              <View style={styles.calendarHeader}>
-                <Text style={styles.calendarTitle}>Select Date</Text>
-                <TouchableOpacity onPress={() => setShowCalendar(false)}>
-                  <Text style={styles.closeButton}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              <SimplifiedCalendar
-                onSelectDate={(date) => {
-                  setSelectedDate(date);
-                  setShowCalendar(false);
-                }}
-                selectedDate={selectedDate}
+            {/* Soil Moisture Threshold Slider */}
+            <View style={styles.sliderContainer}>
+              <Text style={styles.sliderLabel}>
+                Soil Moisture Threshold: {soilMoistureThreshold}%
+              </Text>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={100}
+                step={1}
+                value={soilMoistureThreshold}
+                onValueChange={isDeviceOnline ? handleThresholdChange : undefined}
+                disabled={!isDeviceOnline}
+                minimumTrackTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
+                maximumTrackTintColor={isDeviceOnline ? '#E5E7EB' : '#E5E7EB'}
+                thumbTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
               />
             </View>
+
           </View>
-        </Modal>
-      )}
+
+        </View>
+
+      </ScrollView>
+
     </SafeAreaView>
   );
 };
+const getSoilMoistureColor = (current: number, threshold: number) => {
+  return current <= threshold + 5 ? '#4ADE80' : '#FACC15';
+};
+const getTemperatureColor = (temp: number) => {
+  if (temp > 35) return '#FACC15'; // Alarm
+  if (temp >= 20 && temp <= 35) return '#4ADE80'; // Healthy
+  return '#3B82F6'; // Low
+};
 
+const getHumidityColor = (humidity: number) => {
+  if (humidity > 70) return '#FACC15'; // Alarm
+  if (humidity >= 60 && humidity <= 70) return '#4ADE80'; // Healthy
+  return '#3B82F6'; // Low
+};
+const calculateArc = (value: number, max: number) => {
+  const percentage = Math.min(value / max, 1);
+  const angle = percentage * 360;
+  const radians = (angle * Math.PI) / 180;
+  const x = 50 + 45 * Math.sin(radians);
+  const y = 50 - 45 * Math.cos(radians);
+  return {
+    path: `M 50 5 A 45 45 0 ${angle > 180 ? 1 : 0} 1 ${x} ${y}`,
+    percentage: Math.round(percentage * 100)
+  };
+};
 const SimplifiedCalendar = ({ onSelectDate, selectedDate }: { onSelectDate: (date: Date) => void; selectedDate: Date }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -355,6 +606,163 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Adjust for Android status bar
   },
+  averagesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  timerText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4B5563',
+    marginLeft: 4,
+  },
+  sliderContainer: {
+    marginTop: 20,
+    paddingHorizontal: 16,
+  },
+  sliderLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  slider: {
+    width: '100%',
+  },
+
+  averagesContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+  },
+  averagesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  averageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  averageBox: {
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    width: '30%',
+  },
+  averageValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  averageLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  // Add these styles to your StyleSheet
+  notificationIconContainer: {
+    position: 'relative',
+    marginLeft: 'auto',
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  notificationPanel: {
+    position: 'absolute',
+    top: 70,
+    right: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    width: 300,
+    maxHeight: 400,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  notificationPanelTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  closeButton: {
+    fontSize: 24,
+    color: '#6B7280',
+    paddingHorizontal: 8,
+  },
+  notificationList: {
+    maxHeight: 300,
+  },
+  notificationItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  unreadNotification: {
+    backgroundColor: '#FEF3C7',
+  },
+  notificationMessage: {
+    color: '#111827',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  notificationTime: {
+    color: '#6B7280',
+    fontSize: 12,
+  },
+  noNotificationsText: {
+    color: '#6B7280',
+    textAlign: 'center',
+    padding: 16,
+  },
+  
+  notificationActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  clearButton: {
+    padding: 4,
+  },
   scrollView: { flex: 1 },
   container: { flex: 1, padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
@@ -395,7 +803,7 @@ const styles = StyleSheet.create({
   calendarContainer: { width: '90%', backgroundColor: 'white', borderRadius: 16, padding: 16, maxHeight: '80%' },
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   calendarTitle: { fontSize: 18, fontWeight: 'bold' },
-  closeButton: { fontSize: 20, color: '#6B7280' },
+  // closeButton: { fontSize: 20, color: '#6B7280' },
   calendar: { width: '100%' },
   calendarNavigation: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   calendarNavButton: { fontSize: 18, fontWeight: 'bold', color: '#4ADE80', padding: 8 },
@@ -410,7 +818,7 @@ const styles = StyleSheet.create({
   sidebar: {
     width: 250,
     backgroundColor: '#F3F4F6',
-    height: Dimensions.get('window').height, 
+    height: Dimensions.get('window').height,
     padding: 20,
     position: 'absolute',
     left: 0,
