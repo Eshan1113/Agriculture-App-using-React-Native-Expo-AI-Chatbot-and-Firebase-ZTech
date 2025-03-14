@@ -3,52 +3,57 @@ import WelcomeScreen from './index';
 import Dashboard from './dashboard';
 import Login from './login';
 import Register from './register';
-import Home from './home'; // Import the Home component
-
+import Home from './home';
+import ProfileCustomization from './ProfileCustomization';
 
 const App = () => {
-  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'dashboard' | 'login' | 'register' | 'home'>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<
+    'welcome' | 'dashboard' | 'login' | 'register' | 'home' | 'profileCustomization'
+  >('welcome');
 
-  const navigateToDashboard = () => {
-    setCurrentScreen('dashboard');
-  };
-
-  const navigateToWelcome = () => {
-    setCurrentScreen('welcome');
-  };
-
-  const navigateToLogin = () => {
-    setCurrentScreen('login');
-  };
-
-  const navigateToRegister = () => {
-    setCurrentScreen('register');
-  };
-
-  const navigateToHome = () => {
-    setCurrentScreen('home');
+  // Unified navigation handler
+  const navigate = (screen: typeof currentScreen) => {
+    setCurrentScreen(screen);
   };
 
   return (
     <>
       {currentScreen === 'welcome' && (
-        <WelcomeScreen navigateToDashboard={navigateToDashboard} />
+        <WelcomeScreen navigateToDashboard={() => navigate('dashboard')} />
       )}
+      
       {currentScreen === 'dashboard' && (
-        <Dashboard navigateToWelcome={navigateToWelcome} navigateToLogin={navigateToLogin} />
-      )}
-      {currentScreen === 'login' && (
-        <Login
-          navigateToDashboard={navigateToDashboard}
-          navigateToRegister={navigateToRegister}
-          navigateToHome={navigateToHome} 
+        <Dashboard 
+          navigateToWelcome={() => navigate('welcome')}
+          navigateToLogin={() => navigate('login')}
         />
       )}
-      {currentScreen === 'register' && (
-        <Register navigateToLogin={navigateToLogin} navigateToDashboard={navigateToDashboard} />
+      
+      {currentScreen === 'login' && (
+        <Login
+          navigateToDashboard={() => navigate('dashboard')}
+          navigateToRegister={() => navigate('register')}
+          navigateToHome={() => navigate('home')}
+        />
       )}
+      
+      {currentScreen === 'register' && (
+        <Register 
+          navigateToLogin={() => navigate('login')}
+          navigateToDashboard={() => navigate('dashboard')}
+        />
+      )}
+      
       {currentScreen === 'home' && (
-        <Home />
+        <Home 
+          navigateToProfileCustomization={() => navigate('profileCustomization')}
+        />
+      )}
+      
+      {currentScreen === 'profileCustomization' && (
+        <ProfileCustomization 
+          navigateToHome={() => navigate('home')}
+        />
       )}
     </>
   );
