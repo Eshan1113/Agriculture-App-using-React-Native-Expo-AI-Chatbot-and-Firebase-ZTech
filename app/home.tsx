@@ -21,9 +21,16 @@ import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
 import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
 import PlantCareBot from './PlantCareBot'; // Import your chatbot component
+import { useNavigation } from '@react-navigation/native';
+const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, navigateToAbout, navigateToContact }: { 
+  navigateToProfileCustomization: () => void,
+  navigateToLogin: () => void,
+  navigateToAbout: () => void;
+  navigateToContact: () => void;
+  navigateToFAQ: () => void,
+  
+ 
 
-const Home = ({ navigateToProfileCustomization }: { 
-  navigateToProfileCustomization: () => void 
 }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -221,48 +228,62 @@ const Home = ({ navigateToProfileCustomization }: {
       />
     )}
 
-    {/* Sidebar */}
-    {showSidebar && (
-      <Animated.View
-        style={[
-          styles.sidebar,
-          {
-            transform: [{ translateX: sidebarAnim }],
-          },
-        ]}
-      >
-        <View style={styles.sidebarHeader}>
-          <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarLogoContainer}>
-            <Text style={styles.sidebarLogoText}>Z</Text>
-          </TouchableOpacity>
-          <Text style={styles.sidebarTitle}>Z-Tech</Text>
-        </View>
-
-        <View style={styles.sidebarMenu}>
-        <TouchableOpacity 
-    style={styles.sidebarMenuItem}
-    onPress={navigateToProfileCustomization}
+  {/* Sidebar */}
+{showSidebar && (
+  <Animated.View
+    style={[
+      styles.sidebar,
+      {
+        transform: [{ translateX: sidebarAnim }],
+      },
+    ]}
   >
-    <Text style={styles.sidebarMenuText}>Profile</Text>
-  </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarMenuItem}>
-            <Text style={styles.sidebarMenuText}>About Z-Tech</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarMenuItem}>
-            <Text style={styles.sidebarMenuText}>Contact Support</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.sidebarHeader}>
+      <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarLogoContainer}>
+        <Text style={styles.sidebarLogoText}>Z</Text>
+      </TouchableOpacity>
+      <Text style={styles.sidebarTitle}>Z-Tech</Text>
+    </View>
 
-        <View style={styles.sidebarFooter}>
-          <TouchableOpacity style={styles.sidebarFooterItem}>
-            <Text style={styles.sidebarFooterText}>FAQ</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.sidebarFooterItem}>
-            <Text style={styles.sidebarFooterText}>Log out</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    )}
+    <View style={styles.sidebarMenu}>
+      <TouchableOpacity 
+        style={styles.sidebarMenuItem}
+        onPress={navigateToProfileCustomization}
+      >
+        <Text style={styles.sidebarMenuText}>Profile</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.sidebarMenuItem}
+        onPress={navigateToAbout}
+      >
+        <Text style={styles.sidebarMenuText}>About Z-Tech</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.sidebarMenuItem}
+        onPress={navigateToContact}
+      >
+        <Text style={styles.sidebarMenuText}>Contact Support</Text>
+      </TouchableOpacity>
+    </View>
+
+    <View style={styles.sidebarFooter}>
+      <TouchableOpacity 
+        style={styles.sidebarFooterItem}
+        onPress={navigateToFAQ}
+      >
+        <Text style={styles.sidebarFooterText}>FAQ</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.sidebarFooterItem}
+        onPress={navigateToLogin}
+      >
+        <Text style={styles.sidebarFooterText}>Log out</Text>
+      </TouchableOpacity>
+    </View>
+  </Animated.View>
+)}
 
       {/* Notification Panel */}
       {showNotifications && (

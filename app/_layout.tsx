@@ -1,17 +1,21 @@
+// _layout.tsx
 import React, { useState } from 'react';
 import WelcomeScreen from './index';
 import Dashboard from './dashboard';
 import Login from './login';
 import Register from './register';
 import Home from './home';
-import ProfileCustomization from './ProfileCustomization';
+import ProfileCustomization from './page/ProfileCustomization';
+import About from './page/about';
+import Contact from './page/contact';
+import FAQ from './page/faq';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<
-    'welcome' | 'dashboard' | 'login' | 'register' | 'home' | 'profileCustomization'
+    'welcome' | 'dashboard' | 'login' | 'register' | 'home' | 
+    'profileCustomization' | 'about' | 'contact' | 'faq'
   >('welcome');
 
-  // Unified navigation handler
   const navigate = (screen: typeof currentScreen) => {
     setCurrentScreen(screen);
   };
@@ -47,11 +51,33 @@ const App = () => {
       {currentScreen === 'home' && (
         <Home 
           navigateToProfileCustomization={() => navigate('profileCustomization')}
+          navigateToAbout={() => navigate('about')}
+          navigateToContact={() => navigate('contact')}
+          navigateToFAQ={() => navigate('faq')}
+          navigateToLogin={() => navigate('login')}
         />
       )}
       
       {currentScreen === 'profileCustomization' && (
         <ProfileCustomization 
+          navigateToHome={() => navigate('home')}
+        />
+      )}
+      
+      {currentScreen === 'about' && (
+        <About 
+          navigateToHome={() => navigate('home')}
+        />
+      )}
+      
+      {currentScreen === 'contact' && (
+        <Contact 
+          navigateToHome={() => navigate('home')}
+        />
+      )}
+      
+      {currentScreen === 'faq' && (
+        <FAQ 
           navigateToHome={() => navigate('home')}
         />
       )}
