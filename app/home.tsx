@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { BlurView } from '@react-native-community/blur'; 
+// import { BlurView } from 'expo-blur'; 
 import {
   View,
   Text,
@@ -19,8 +21,17 @@ import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
 import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
 import PlantCareBot from './PlantCareBot'; // Import your chatbot component
+import { useNavigation } from '@react-navigation/native';
+const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, navigateToAbout, navigateToContact }: { 
+  navigateToProfileCustomization: () => void,
+  navigateToLogin: () => void,
+  navigateToAbout: () => void;
+  navigateToContact: () => void;
+  navigateToFAQ: () => void,
+  
+ 
 
-const Home = () => {
+}) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
@@ -28,6 +39,7 @@ const Home = () => {
   const [notificationsViewed, setNotificationsViewed] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
+
   const [chatbotKey, setChatbotKey] = useState(0); // For resetting chatbot state
   const [notifications, setNotifications] = useState<Array<{
     id: string;
@@ -136,7 +148,11 @@ const Home = () => {
       }).start();
     }
   };
-
+  const handleOutsideClick = () => {
+    if (showSidebar) {
+      toggleSidebar();
+    }
+  };
   const [sensorReadings, setSensorReadings] = useState<Array<{
     temperature: number;
     soil_moisture: number;
@@ -201,47 +217,73 @@ const Home = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
+    <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
 
-      {/* Sidebar */}
-      {showSidebar && (
-        <Animated.View
-          style={[
-            styles.sidebar,
-            {
-              transform: [{ translateX: sidebarAnim }],
-            },
-          ]}
-        >
-          <View style={styles.sidebarHeader}>
-            <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarLogoContainer}>
-              <Text style={styles.sidebarLogoText}>Z</Text>
-            </TouchableOpacity>
-            <Text style={styles.sidebarTitle}>Z-Tech</Text>
-          </View>
+    {/* Semi-Transparent Overlay */}
+    {showSidebar && (
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1} // Prevent flickering
+        onPress={handleOutsideClick}
+      />
+    )}
 
-          <View style={styles.sidebarMenu}>
-            <TouchableOpacity style={styles.sidebarMenuItem}>
-              <Text style={styles.sidebarMenuText}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.sidebarMenuItem}>
-              <Text style={styles.sidebarMenuText}>About Z-Tech</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.sidebarMenuItem}>
-              <Text style={styles.sidebarMenuText}>Contact Support</Text>
-            </TouchableOpacity>
-          </View>
+  {/* Sidebar */}
+{showSidebar && (
+  <Animated.View
+    style={[
+      styles.sidebar,
+      {
+        transform: [{ translateX: sidebarAnim }],
+      },
+    ]}
+  >
+    <View style={styles.sidebarHeader}>
+      <TouchableOpacity onPress={toggleSidebar} style={styles.sidebarLogoContainer}>
+        <Text style={styles.sidebarLogoText}>Z</Text>
+      </TouchableOpacity>
+      <Text style={styles.sidebarTitle}>Z-Tech</Text>
+    </View>
 
-          <View style={styles.sidebarFooter}>
-            <TouchableOpacity style={styles.sidebarFooterItem}>
-              <Text style={styles.sidebarFooterText}>FAQ</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.sidebarFooterItem}>
-              <Text style={styles.sidebarFooterText}>Log out</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
+    <View style={styles.sidebarMenu}>
+      <TouchableOpacity 
+        style={styles.sidebarMenuItem}
+        onPress={navigateToProfileCustomization}
+      >
+        <Text style={styles.sidebarMenuText}>Profile</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.sidebarMenuItem}
+        onPress={navigateToAbout}
+      >
+        <Text style={styles.sidebarMenuText}>About Z-Tech</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.sidebarMenuItem}
+        onPress={navigateToContact}
+      >
+        <Text style={styles.sidebarMenuText}>Contact Support</Text>
+      </TouchableOpacity>
+    </View>
+
+    <View style={styles.sidebarFooter}>
+      <TouchableOpacity 
+        style={styles.sidebarFooterItem}
+        onPress={navigateToFAQ}
+      >
+        <Text style={styles.sidebarFooterText}>FAQ</Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.sidebarFooterItem}
+        onPress={navigateToLogin}
+      >
+        <Text style={styles.sidebarFooterText}>Log out</Text>
+      </TouchableOpacity>
+    </View>
+  </Animated.View>
+)}
 
       {/* Notification Panel */}
       {showNotifications && (
@@ -500,44 +542,10 @@ const Home = () => {
 
         
       </ScrollView >
-      <TouchableOpacity
-        style={styles.chatbotIcon}
-        onPress={() => {
-          setShowChatbot(true);
-          setChatbotKey(prev => prev + 1); // Reset chatbot state on open
-        }}
-      >
-        <Svg height="24" width="24" viewBox="0 0 24 24">
-          <Path
-            d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 14h12v2H6v-2zm0-3h12v2H6v-2zm0-3h12v2H6V8z"
-            fill="#FFFFFF"
-          />
-        </Svg>
-      </TouchableOpacity>
+      
 
       {/* Chatbot Modal */}
-      <Modal
-        visible={showChatbot}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setShowChatbot(false)}
-      >
-        <View style={styles.chatbotModal}>
-          {/* Header with Close Button */}
-          <View style={styles.chatbotHeader}>
-            <Text style={styles.chatbotTitle}>Plant Care Assistant</Text>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setShowChatbot(false)}
-            >
-              <Text style={styles.closeButtonText}>×</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Chatbot Component */}
-          <PlantCareBot key={chatbotKey} />
-        </View>
-      </Modal>
+      <PlantCareBot />
     </SafeAreaView>
   );
 };
@@ -858,6 +866,73 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#6B7280',
   },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent black
+    zIndex: 999, // Below the sidebar but above other content
+  },
+  sidebar: {
+    width: 250,
+    backgroundColor: 'rgba(243, 244, 246, 0.81)', // Semi-transparent background
+    height: Dimensions.get('window').height,
+    padding: 20,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 1000, // Above the overlay
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  sidebarLogoContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#4ADE80',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  sidebarLogoText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  sidebarTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  sidebarMenu: {
+    marginTop: 20,
+  },
+  sidebarMenuItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  sidebarMenuText: {
+    fontSize: 16,
+  },
+  sidebarFooter: {
+    marginTop: 'auto',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 20,
+  },
+  sidebarFooterItem: {
+    paddingVertical: 10,
+  },
+  sidebarFooterText: {
+    fontSize: 16,
+  },
   scrollView: { flex: 1 },
   container: { flex: 1, padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
@@ -910,26 +985,7 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 14 },
   selectedDay: { backgroundColor: '#4ADE80', borderRadius: 20 },
   selectedDayText: { color: 'white', fontWeight: 'bold' },
-  sidebar: {
-    width: 250,
-    backgroundColor: '#F3F4F6',
-    height: Dimensions.get('window').height,
-    padding: 20,
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    zIndex: 1000,
-  },
-  sidebarHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  sidebarLogoContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#4ADE80', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  sidebarLogoText: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-  sidebarTitle: { fontSize: 20, fontWeight: 'bold' },
-  sidebarMenu: { marginTop: 20 },
-  sidebarMenuItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  sidebarMenuText: { fontSize: 16 },
-  sidebarFooter: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 20 },
-  sidebarFooterItem: { paddingVertical: 10 },
-  sidebarFooterText: { fontSize: 16 },
+  
 });
 
 export default Home;
