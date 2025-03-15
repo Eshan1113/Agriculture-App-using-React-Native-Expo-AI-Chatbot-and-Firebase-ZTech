@@ -1,9 +1,48 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { database } from '../firebaseConfig';
+import { ref, get } from 'firebase/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProfileCustomization = ({ navigateToHome }: { 
   navigateToHome: () => void 
 }) => {
+  const [userData, setUserData] = useState<{username?: string, email?: string}>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+       
+        const username = await AsyncStorage.getItem('username');
+        
+        if(username) {
+         
+          const userRef = ref(database, `users/${username}`);
+          const snapshot = await get(userRef);
+          
+          if(snapshot.exists()) {
+            setUserData(snapshot.val());
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  if(loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#4CD964" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -14,8 +53,12 @@ const ProfileCustomization = ({ navigateToHome }: {
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.welcomeText}>Welcome to Profile Customization!</Text>
+        <Text style={styles.welcomeText}>
+          Welcome {userData.username || 'Plant Parent'}!
+        </Text>
+        
         <Text style={styles.description}>
+          {userData.email && `Email: ${userData.email}\n`}
           This is where you'll set up your plant parent profile. 
           (Feature in development)
         </Text>
@@ -23,6 +66,7 @@ const ProfileCustomization = ({ navigateToHome }: {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
