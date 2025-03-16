@@ -20,6 +20,7 @@ import { StatusBar } from 'expo-status-bar';
 import { database } from './firebaseConfig'; // Import the database instance
 import { ref, get } from 'firebase/database';
 import * as Crypto from 'expo-crypto'; // For hashing the password
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -89,7 +90,7 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
         setIsLoading(false);
         return;
       }
-
+      await AsyncStorage.setItem('username', username);
       // Login successful
       Alert.alert(
         'Success',
