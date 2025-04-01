@@ -67,13 +67,10 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
       return;
     }
 
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
 
     try {
-      // Hash the entered password
       const hashedPassword = await hashPassword(password);
-
-      // Check if the username exists in Firebase
       const userRef = ref(database, `users/${username}`);
       const snapshot = await get(userRef);
 
@@ -83,29 +80,31 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
         return;
       }
 
-      // Compare the hashed password
       const userData = snapshot.val();
       if (userData.password !== hashedPassword) {
         Alert.alert('Error', 'Incorrect password.');
         setIsLoading(false);
         return;
       }
-      await AsyncStorage.setItem('username', username);
-      // Login successful
+
+      // Store both username and login state
+      await AsyncStorage.multiSet([
+        ['username', username],
+        ['isLoggedIn', 'true']
+      ]);
+
       Alert.alert(
         'Success',
         'Login successful!',
-        [
-          {
-            text: 'OK',
-            onPress: () => handleNavigation(navigateToHome), // Redirect to Home screen
-          },
-        ]
+        [{
+          text: 'OK',
+          onPress: () => handleNavigation(navigateToHome),
+        }]
       );
     } catch (error) {
       Alert.alert('Error', 'Failed to login: ' + (error as any).message);
     } finally {
-      setIsLoading(false); // Stop loading
+      setIsLoading(false);
     }
   };
 
