@@ -1,5 +1,6 @@
-// _layout.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeScreen from './index';
 import Dashboard from './dashboard';
 import Login from './login';
@@ -15,10 +16,41 @@ const App = () => {
     'welcome' | 'dashboard' | 'login' | 'register' | 'home' | 
     'profileCustomization' | 'about' | 'contact' | 'faq'
   >('welcome');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const username = await AsyncStorage.getItem('username');
+        const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
+        
+        if (username && isLoggedIn === 'true') {
+          setCurrentScreen('home');
+        } else {
+          setCurrentScreen('welcome');
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        setCurrentScreen('welcome');
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuthStatus();
+  }, []);
 
   const navigate = (screen: typeof currentScreen) => {
     setCurrentScreen(screen);
   };
+
+  if (isCheckingAuth) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#4CD964" />
+      </View>
+    );
+  }
 
   return (
     <>
@@ -54,7 +86,10 @@ const App = () => {
           navigateToAbout={() => navigate('about')}
           navigateToContact={() => navigate('contact')}
           navigateToFAQ={() => navigate('faq')}
-          navigateToLogin={() => navigate('login')}
+          navigateToLogin={async () => {
+            await AsyncStorage.multiRemove(['username', 'isLoggedIn']);
+            navigate('login');
+          }}
         />
       )}
       

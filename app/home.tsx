@@ -22,6 +22,7 @@ import { database } from './firebaseConfig';
 import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
 import PlantCareBot from './PlantCareBot'; // Import your chatbot component
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, navigateToAbout, navigateToContact }: { 
   navigateToProfileCustomization: () => void,
   navigateToLogin: () => void,
@@ -75,7 +76,27 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
         setIsDeviceOnline(true);
       }
     });
-
+    useEffect(() => {
+      const checkSession = async () => {
+        try {
+          const username = await AsyncStorage.getItem('username');
+          const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
+          
+          if (!username || isLoggedIn !== 'true') {
+            navigateToLogin();
+          }
+        } catch (error) {
+          console.error('Session check error:', error);
+        }
+      };
+  
+      // Check immediately on mount
+      checkSession();
+      
+      // Then check every 5 minutes
+      const interval = setInterval(checkSession, 300000);
+      return () => clearInterval(interval);
+    }, []);
     // Fetch threshold from Firebase
     const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
     const unsubscribeThreshold = onValue(thresholdRef, (snapshot) => {
