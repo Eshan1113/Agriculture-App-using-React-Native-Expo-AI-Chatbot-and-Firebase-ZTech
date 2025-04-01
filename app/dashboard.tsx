@@ -1,77 +1,75 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Use Expo-compatible icons
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface DashboardProps {
   navigateToWelcome: () => void;
-  navigateToLogin: () => void; // Add navigateToLogin prop
+  navigateToLogin: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogin }) => {
   const [serviceText, setServiceText] = useState('Customer Support');
-  const [textColor, setTextColor] = useState('#8B44FF'); // Initial color
-  const fadeAnim = useRef(new Animated.Value(1)).current; // Initial opacity for erase animation
-  const translateYAnim = useRef(new Animated.Value(0)).current; // Initial vertical position
+  const [textColor, setTextColor] = useState('#8B44FF');
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const texts = [
-      { text: 'Customer Support', color: '#8B44FF' }, // Purple
-      { text: 'AI Chat Bot', color: '#44A4FF' }, // Blue
-      { text: '24/7', color: '#4CD964' }, // Green
+      { text: 'Customer Support', color: '#8B44FF' },
+      { text: 'AI Chat Bot', color: '#44A4FF' },
+      { text: '24/7 Monitoring', color: '#4CD964' },
     ];
 
     let index = 0;
 
     const animateText = () => {
       Animated.timing(translateYAnim, {
-        toValue: -40, // Move text up
-        duration: 100, // Animation duration
-        useNativeDriver: true, // Use native driver for better performance
+        toValue: -40,
+        duration: 100,
+        useNativeDriver: true,
       }).start(() => {
-        // Update text and color after animation
         setServiceText(texts[index].text);
         setTextColor(texts[index].color);
-        translateYAnim.setValue(20); // Reset position below
+        translateYAnim.setValue(20);
         Animated.timing(translateYAnim, {
-          toValue: 0, // Move text back to original position
-          duration: 100, // Animation duration
-          useNativeDriver: true, // Use native driver for better performance
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
         }).start();
         index = (index + 1) % texts.length;
       });
     };
 
     const interval = setInterval(animateText, 2000);
-
     return () => clearInterval(interval);
   }, []);
 
   const handleBackNavigation = () => {
-    // Start the erase-out animation
     Animated.timing(fadeAnim, {
-      toValue: 0, // Fade out to 0 opacity
-      duration: 500, // Animation duration
-      useNativeDriver: true, // Use native driver for better performance
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
     }).start(() => {
-      navigateToWelcome(); // Navigate after animation completes
+      navigateToWelcome();
     });
   };
 
-  const handleNextNavigation = () => {
-    // Start the erase-out animation
+  const handleNextNavigation = async () => {
+    // Mark onboarding as completed before navigating
+    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
     Animated.timing(fadeAnim, {
-      toValue: 0, // Fade out to 0 opacity
-      duration: 500, // Animation duration
-      useNativeDriver: true, // Use native driver for better performance
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
     }).start(() => {
-      navigateToLogin(); // Navigate to Login screen
+      navigateToLogin();
     });
   };
 
   return (
     <Animated.View style={[styles.mainContainer, { opacity: fadeAnim }]}>
-      {/* Set the status bar style to light-content (white text) */}
       <StatusBar style="dark" backgroundColor="transparent" translucent />
       
       <View style={styles.container}>
@@ -85,21 +83,32 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
             <Text style={styles.subtitle}>Monitor Your Plant Environment</Text>
             
             <View style={styles.serviceContainer}>
-              <Animated.Text style={[styles.serviceText, { color: textColor, transform: [{ translateY: translateYAnim }] }]}>
+              <Animated.Text 
+                style={[
+                  styles.serviceText, 
+                  { 
+                    color: textColor, 
+                    transform: [{ translateY: translateYAnim }] 
+                  }
+                ]}
+              >
                 {serviceText}
               </Animated.Text>
             </View>
 
-            <Text style={styles.loremText}>
-              Lorem ipsum dolor sit amet consectetur. Vulputate nisl nisl blandit pell accumsana ornare. Volutpat quam odio ut dui turpis viverra curabitur. Libero pellentesque enim felis venenatis massa aliquam egestas sollicitudin libero. Curabitur urna nullam volutpat nunc lectus lacus natoque elit. Lorem ipsum dolor sit amet consecpellentesque enim felis venenatis massa aliquam egestas sollicitudin libero. Curabitur urna nullam volutpat nunc lectus lacus natoque elit.
+            <Text style={styles.descriptionText}>
+              Our smart monitoring system helps you maintain optimal conditions for your plants 
+              with real-time data and automated alerts.
             </Text>
           </View>
         </View>
 
         <View style={styles.bottomContainer}>
           <View style={styles.leftButton}>
-            <TouchableOpacity style={styles.circleButton} onPress={handleBackNavigation}>
-              {/* Use Ionicons from @expo/vector-icons */}
+            <TouchableOpacity 
+              style={styles.circleButton} 
+              onPress={handleBackNavigation}
+            >
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
           </View>
@@ -108,12 +117,13 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
             <View style={[styles.dot, styles.dotActive]} />
             <View style={[styles.dot, styles.dotActive]} />
             <View style={styles.dot} />
-            <View style={styles.dot} />
           </View>
 
           <View style={styles.rightButton}>
-            <TouchableOpacity style={styles.nextButton} onPress={handleNextNavigation}>
-              {/* Use Ionicons from @expo/vector-icons */}
+            <TouchableOpacity 
+              style={styles.nextButton} 
+              onPress={handleNextNavigation}
+            >
               <Ionicons name="arrow-forward" size={24} color="white" />
             </TouchableOpacity>
           </View>
@@ -163,23 +173,26 @@ const styles = StyleSheet.create({
   },
   serviceContainer: {
     marginBottom: 20,
+    height: 40,
+    justifyContent: 'center',
   },
   serviceText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '500',
   },
-  loremText: {
+  descriptionText: {
     fontSize: 14,
     color: '#666',
     lineHeight: 22,
     textAlign: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
   },
   bottomContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 40,
   },
   leftButton: {
     width: 40,

@@ -1,3 +1,4 @@
+// _layout.tsx
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,13 +22,24 @@ const App = () => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const username = await AsyncStorage.getItem('username');
-        const isLoggedIn = await AsyncStorage.getItem('isLoggedIn');
-        
+        const [username, isLoggedIn, hasCompletedOnboarding] = await Promise.all([
+          AsyncStorage.getItem('username'),
+          AsyncStorage.getItem('isLoggedIn'),
+          AsyncStorage.getItem('hasCompletedOnboarding')
+        ]);
+
+        // First time launch - show onboarding
+        if (!hasCompletedOnboarding) {
+          setCurrentScreen('welcome');
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        // Returning user check
         if (username && isLoggedIn === 'true') {
           setCurrentScreen('home');
         } else {
-          setCurrentScreen('welcome');
+          setCurrentScreen('login');
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
@@ -52,72 +64,46 @@ const App = () => {
     );
   }
 
-  return (
-    <>
-      {currentScreen === 'welcome' && (
-        <WelcomeScreen navigateToDashboard={() => navigate('dashboard')} />
-      )}
-      
-      {currentScreen === 'dashboard' && (
-        <Dashboard 
-          navigateToWelcome={() => navigate('welcome')}
-          navigateToLogin={() => navigate('login')}
-        />
-      )}
-      
-      {currentScreen === 'login' && (
-        <Login
-          navigateToDashboard={() => navigate('dashboard')}
-          navigateToRegister={() => navigate('register')}
-          navigateToHome={() => navigate('home')}
-        />
-      )}
-      
-      {currentScreen === 'register' && (
-        <Register 
-          navigateToLogin={() => navigate('login')}
-          navigateToDashboard={() => navigate('dashboard')}
-        />
-      )}
-      
-      {currentScreen === 'home' && (
-        <Home 
-          navigateToProfileCustomization={() => navigate('profileCustomization')}
-          navigateToAbout={() => navigate('about')}
-          navigateToContact={() => navigate('contact')}
-          navigateToFAQ={() => navigate('faq')}
-          navigateToLogin={async () => {
-            await AsyncStorage.multiRemove(['username', 'isLoggedIn']);
-            navigate('login');
-          }}
-        />
-      )}
-      
-      {currentScreen === 'profileCustomization' && (
-        <ProfileCustomization 
-          navigateToHome={() => navigate('home')}
-        />
-      )}
-      
-      {currentScreen === 'about' && (
-        <About 
-          navigateToHome={() => navigate('home')}
-        />
-      )}
-      
-      {currentScreen === 'contact' && (
-        <Contact 
-          navigateToHome={() => navigate('home')}
-        />
-      )}
-      
-      {currentScreen === 'faq' && (
-        <FAQ 
-          navigateToHome={() => navigate('home')}
-        />
-      )}
-    </>
-  );
+  const screens = {
+    welcome: <WelcomeScreen navigateToDashboard={() => navigate('dashboard')} />,
+    dashboard: (
+      <Dashboard 
+        navigateToWelcome={() => navigate('welcome')}
+        navigateToLogin={() => navigate('login')}
+      />
+    ),
+    login: (
+      <Login
+        navigateToDashboard={() => navigate('dashboard')}
+        navigateToRegister={() => navigate('register')}
+        navigateToHome={() => navigate('home')}
+      />
+    ),
+    register: (
+      <Register 
+        navigateToLogin={() => navigate('login')}
+        navigateToDashboard={() => navigate('dashboard')}
+      />
+    ),
+    home: (
+      <Home 
+        navigateToProfileCustomization={() => navigate('profileCustomization')}
+        navigateToAbout={() => navigate('about')}
+        navigateToContact={() => navigate('contact')}
+        navigateToFAQ={() => navigate('faq')}
+        navigateToLogin={async () => {
+          await AsyncStorage.multiRemove(['username', 'isLoggedIn']);
+          navigate('login');
+        }}
+      />
+    ),
+    profileCustomization: <ProfileCustomization navigateToHome={() => navigate('home')} />,
+    about: <About navigateToHome={() => navigate('home')} />,
+    contact: <Contact navigateToHome={() => navigate('home')} />,
+    faq: <FAQ navigateToHome={() => navigate('home')} />
+  };
+
+  return screens[currentScreen] || screens.welcome;
 };
 
 export default App;
