@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, SafeAreaView, Animated, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface WelcomeScreenProps {
   navigateToDashboard: () => void;
@@ -12,13 +13,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigateToDashboard }) =>
 
   const handleGetStarted = () => {
     if (isChecked) {
-      // Start the erase-out animation
       Animated.timing(fadeAnim, {
-        toValue: 0, // Fade out to 0 opacity
-        duration: 500, // Animation duration
-        useNativeDriver: true, // Use native driver for better performance
-      }).start(() => {
-        navigateToDashboard(); // Navigate after animation completes
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(async () => { // Add async here
+        // Mark onboarding as completed
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+        navigateToDashboard();
       });
     } else {
       Alert.alert('Agreement Required', 'Please agree to continue by checking the box.');
