@@ -198,12 +198,16 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
           useNativeDriver: true,
         }),
       ]).start(() => {
+        // Clear all form fields
+        setUsername('');
+        setEmail('');
+        setPassword('');
+        
         Alert.alert(
           'Success',
           'Registration successful!',
           [{
             text: 'OK',
-            onPress: () => handleNavigation(navigateToLogin),
           }]
         );
       });
@@ -234,7 +238,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
           {/* Back Button - Enhanced Design */}
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => handleNavigation(navigateToHome)}
+            onPress={() => handleNavigation(navigateToLogin)}
             activeOpacity={0.7}
           >
             <LinearGradient
@@ -250,7 +254,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
           {/* Logo */}
           <Animated.View style={[styles.header, { opacity: logoFadeAnim }]}>
             <View style={styles.logoContainer}>
-              <Ionicons name="leaf-outline" size={26} top ={10} color="#fff" />
+              <Ionicons name="leaf-outline" size={26} top={10} color="#fff" />
               <Text style={styles.logo}>
                 <Text style={styles.logoPrefix}>Z-</Text>
                 <Text style={styles.logoSuffix}>Tech</Text>
@@ -637,7 +641,6 @@ const styles = StyleSheet.create({
     top: Platform.OS === 'ios' ? height * 0.05 : height * 0.035, 
     left: width * 0.05,
     zIndex: 10,
-
   },
   backButtonGradient: {
     width: 35,
@@ -653,7 +656,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     top: 10,
   },
-  // Bottom dots
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',

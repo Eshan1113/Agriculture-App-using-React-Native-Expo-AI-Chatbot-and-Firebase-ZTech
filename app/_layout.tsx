@@ -82,7 +82,9 @@ const App = () => {
     register: (
       <Register 
         navigateToLogin={() => navigate('login')}
+     
         navigateToDashboard={() => navigate('dashboard')}
+        navigateToHome={() => navigate('home')}
       />
     ),
     home: (
