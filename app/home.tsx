@@ -19,8 +19,8 @@ import Slider from '@react-native-community/slider';
 
 import { Svg, Circle, Path, Rect } from 'react-native-svg';
 import { database } from './firebaseConfig';
-import { ref, onValue, set } from 'firebase/database'; // Add set for writing to Firebase
-import PlantCareBot from './PlantCareBot'; // Import your chatbot component
+import { ref, onValue, set } from 'firebase/database'; 
+import PlantCareBot from './PlantCareBot'; 
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, navigateToAbout, navigateToContact }: { 
@@ -41,7 +41,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
 
-  const [chatbotKey, setChatbotKey] = useState(0); // For resetting chatbot state
+  const [chatbotKey, setChatbotKey] = useState(0); 
   const [notifications, setNotifications] = useState<Array<{
     id: string;
     message: string;
@@ -54,8 +54,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
     soil_moisture: 0,
     relay_status: 'OFF',
   });
-  const [soilMoistureThreshold, setSoilMoistureThreshold] = useState(50); // Default threshold
-
+  const [soilMoistureThreshold, setSoilMoistureThreshold] = useState(50); 
   // Animation value for sidebar
   const sidebarAnim = useRef(new Animated.Value(-250)).current;
   useEffect(() => {
@@ -148,9 +147,9 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
 
   // Update threshold in Firebase when slider changes
   const handleThresholdChange = (value: number) => {
-    setSoilMoistureThreshold(value); // Update local state
+    setSoilMoistureThreshold(value); 
     const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
-    set(thresholdRef, value); // Update Firebase
+    set(thresholdRef, value); 
   };
 
   const toggleSidebar = () => {
@@ -187,7 +186,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
 
   // Add this useEffect for calculating averages
   useEffect(() => {
-    if (!isDeviceOnline) return; // Stop calculating if device is offline
+    if (!isDeviceOnline) return;
 
     const newReading = {
       temperature: sensorData.temperature,
@@ -213,7 +212,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
       }
       return updatedReadings;
     });
-  }, [sensorData, isDeviceOnline]); // This will trigger every time sensorData updates
+  }, [sensorData, isDeviceOnline]); 
 
   // Add this state for the timer
   const [timer, setTimer] = useState(10);

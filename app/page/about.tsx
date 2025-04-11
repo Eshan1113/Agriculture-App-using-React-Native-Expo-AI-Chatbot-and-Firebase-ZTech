@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, BackHandler, Image } from 'react-native';
 import { Svg, Path } from 'react-native-svg';
 import { StatusBar } from 'expo-status-bar';
 
@@ -20,30 +20,36 @@ const About = ({ navigateToHome }: { navigateToHome: () => void }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
+      <StatusBar style="dark" backgroundColor="#f8fafc" translucent />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={navigateToHome} style={styles.backButton}>
           <View style={styles.backButtonCircle}>
             <Svg width="24" height="24" viewBox="0 0 24 24">
-              <Path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" fill="#4ADE80" />
+              <Path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" fill="#16a34a" />
             </Svg>
           </View>
         </TouchableOpacity>
-        <Text style={styles.title}>About Z-Tech</Text>
+        <Text style={styles.title}>About ZTech</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       {/* Main Content */}
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <Svg width="80" height="80" viewBox="0 0 24 24" fill="#4ADE80">
-            <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" />
-          </Svg>
-          <Text style={styles.heroTitle}>Smart Plant Care Solutions</Text>
+          {/* Replace the SVG with your logo image */}
+          <Image
+            source={require('../../assets/images/11.png')} // Update path to your logo
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.heroTitle}>Smart Agricultural Monitoring System</Text>
           <Text style={styles.heroSubtitle}>
-            Revolutionizing plant care through IoT technology.
+            Revolutionizing farming through IoT technology and automation
           </Text>
         </View>
 
@@ -51,32 +57,80 @@ const About = ({ navigateToHome }: { navigateToHome: () => void }) => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Our Mission</Text>
           <Text style={styles.cardText}>
-            At Z-Tech, we are dedicated to making plant care effortless and efficient. 
-            Our IoT-based system provides real-time monitoring and smart automation 
-            to ensure your plants thrive with minimal effort.
+            ZTech is dedicated to helping farmers and agricultural enthusiasts optimize their crop
+            production through real-time monitoring and automated control systems. Our integrated
+            mobile app and IoT device provide precise control over irrigation and environmental
+            conditions, ensuring optimal plant growth with minimal manual intervention.
           </Text>
         </View>
 
         {/* Features Section */}
         <View style={styles.featuresSection}>
-          <Text style={styles.sectionTitle}>Why Choose Z-Tech?</Text>
+          <Text style={styles.sectionTitle}>Key Features</Text>
+
           <View style={styles.featureItem}>
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#4ADE80">
-              <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" />
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#16a34a">
+              <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </Svg>
-            <Text style={styles.featureText}>Real-time plant monitoring</Text>
+            <View>
+              <Text style={styles.featureTitle}>Real-time Monitoring</Text>
+              <Text style={styles.featureText}>
+                Track soil moisture, temperature, and humidity with updates every 60 seconds
+              </Text>
+            </View>
           </View>
+
           <View style={styles.featureItem}>
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#4ADE80">
-              <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" />
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#16a34a">
+              <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </Svg>
-            <Text style={styles.featureText}>Smart automation for watering</Text>
+            <View>
+              <Text style={styles.featureTitle}>Automated Control</Text>
+              <Text style={styles.featureText}>
+                Smart irrigation and humidity control based on your custom settings
+              </Text>
+            </View>
           </View>
+
           <View style={styles.featureItem}>
-            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#4ADE80">
-              <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" />
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#16a34a">
+              <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </Svg>
-            <Text style={styles.featureText}>Easy-to-use mobile app</Text>
+            <View>
+              <Text style={styles.featureTitle}>Reliable Connectivity</Text>
+              <Text style={styles.featureText}>
+                WiFi-enabled with automatic fallback to Access Point mode when offline
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.featureItem}>
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="#16a34a">
+              <Path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </Svg>
+            <View>
+              <Text style={styles.featureTitle}>Multi-language Support</Text>
+              <Text style={styles.featureText}>
+                Available in both English and Sinhala for better accessibility
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Technology Section */}
+        <View style={styles.techSection}>
+          <Text style={styles.sectionTitle}>Technology Stack</Text>
+          <View style={styles.techItem}>
+            <Text style={styles.techTitle}>Mobile App</Text>
+            <Text style={styles.techText}>React Native (Expo) with Firebase integration</Text>
+          </View>
+          <View style={styles.techItem}>
+            <Text style={styles.techTitle}>IoT Device</Text>
+            <Text style={styles.techText}>ESP32 microcontroller programmed with Arduino IDE</Text>
+          </View>
+          <View style={styles.techItem}>
+            <Text style={styles.techTitle}>Cloud Services</Text>
+            <Text style={styles.techText}>Firebase for real-time data storage and synchronization</Text>
           </View>
         </View>
       </ScrollView>
@@ -87,101 +141,152 @@ const About = ({ navigateToHome }: { navigateToHome: () => void }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#f8fafc',
   },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+  },
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'android' ? 50 : 16,
+    backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingTop: Platform.OS === 'android' ? 25 : 16, // Adjust for Android status bar
+    borderBottomColor: '#e5e7eb',
   },
   backButton: {
     padding: 8,
   },
   backButtonCircle: {
     width: 40,
-    top: 5,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#dcfce7',
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     fontSize: 18,
-    top: 5,
-    right: 10,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1a2e05',
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: -40,
   },
   headerSpacer: {
-    width: 24,
+    width: 40,
   },
   content: {
     flexGrow: 1,
-    padding: 24,
+    padding: 16,
+    paddingBottom: 32,
   },
   heroSection: {
     alignItems: 'center',
     marginBottom: 32,
+    paddingHorizontal: 16,
   },
   heroTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#1a2e05',
     marginTop: 16,
     textAlign: 'center',
+    lineHeight: 28,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#4b5563',
     textAlign: 'center',
     marginTop: 8,
+    lineHeight: 22,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: '#166534',
     marginBottom: 12,
   },
   cardText: {
     fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
+    color: '#4b5563',
+    lineHeight: 22,
   },
   featuresSection: {
-    marginTop: 16,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: '#166534',
     marginBottom: 16,
   },
   featureItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  featureTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a2e05',
+    marginLeft: 12,
+    marginBottom: 4,
   },
   featureText: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#4b5563',
     marginLeft: 12,
+    lineHeight: 20,
+  },
+  techSection: {
+    marginBottom: 16,
+  },
+  techItem: {
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  techTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#166534',
+    marginBottom: 4,
+  },
+  techText: {
+    fontSize: 14,
+    color: '#4b5563',
+    lineHeight: 20,
   },
 });
 
