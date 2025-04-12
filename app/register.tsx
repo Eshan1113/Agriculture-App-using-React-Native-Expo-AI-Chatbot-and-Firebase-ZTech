@@ -17,6 +17,8 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   Keyboard,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -46,7 +48,9 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
-  
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalContent, setModalContent] = useState<'terms' | 'privacy' | null>(null);
+
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateYAnim = useRef(new Animated.Value(height)).current;
@@ -55,6 +59,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
   const avatarAnim = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(0)).current;
   const buttonAnim = useRef(new Animated.Value(0)).current;
+  const modalAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Sequence animations when component mounts
@@ -99,6 +104,27 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
       ]),
     ]).start();
   }, []);
+
+  const showModal = (contentType: 'terms' | 'privacy') => {
+    setModalContent(contentType);
+    setModalVisible(true);
+    Animated.timing(modalAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideModal = () => {
+    Animated.timing(modalAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setModalVisible(false);
+      setModalContent(null);
+    });
+  };
 
   const handleNavigation = (navigateFunction: () => void) => {
     Animated.timing(fadeAnim, {
@@ -202,12 +228,13 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
         setUsername('');
         setEmail('');
         setPassword('');
-        
+
         Alert.alert(
           'Success',
           'Registration successful!',
           [{
             text: 'OK',
+            onPress: () => navigateToLogin(),
           }]
         );
       });
@@ -222,10 +249,94 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
     setShowPassword(!showPassword);
   };
 
+  const renderModalContent = () => {
+    if (modalContent === 'terms') {
+      return (
+        <ScrollView style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Terms of Service</Text>
+          <Text style={styles.modalText}>
+            Last Updated: {new Date().toLocaleDateString()}
+          </Text>
+
+          <Text style={styles.modalSubtitle}>1. Acceptance of Terms</Text>
+          <Text style={styles.modalText}>
+            By accessing or using the Z-Tech Smart Farming Solution ("Service"), you agree to be bound by these Terms of Service.
+          </Text>
+
+          <Text style={styles.modalSubtitle}>2. Description of Service</Text>
+          <Text style={styles.modalText}>
+            Z-Tech provides a smart farming solution that monitors soil moisture, temperature, and humidity levels to help optimize plant growth.
+          </Text>
+
+          <Text style={styles.modalSubtitle}>3. User Responsibilities</Text>
+          <Text style={styles.modalText}>
+            - You must provide accurate registration information{"\n"}
+            - You are responsible for maintaining the confidentiality of your account{"\n"}
+            - You agree to use the Service only for lawful purposes
+          </Text>
+
+          <Text style={styles.modalSubtitle}>4. Intellectual Property</Text>
+          <Text style={styles.modalText}>
+            All content and technology included on the Service are the property of Z-Tech and protected by intellectual property laws.
+          </Text>
+
+          <Text style={styles.modalSubtitle}>5. Limitation of Liability</Text>
+          <Text style={styles.modalText}>
+            Z-Tech shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service.
+          </Text>
+
+          <Text style={styles.modalSubtitle}>6. Privacy Policy</Text>
+          <Text style={styles.modalText}>
+            Please review our privacy policy for more information on how we collect, use, and protect your personal data.
+          </Text>
+        </ScrollView>
+      );
+    } else if (modalContent === 'privacy') {
+      return (
+        <ScrollView style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Privacy Policy</Text>
+          <Text style={styles.modalText}>
+            Last Updated: {new Date().toLocaleDateString()}
+          </Text>
+
+          <Text style={styles.modalSubtitle}>1. Information We Collect</Text>
+          <Text style={styles.modalText}>
+            We collect personal information you provide when registering, including username, email address, and password (hashed for security).
+          </Text>
+
+          <Text style={styles.modalSubtitle}>2. How We Use Your Information</Text>
+          <Text style={styles.modalText}>
+            - To provide and maintain our Service{"\n"}
+            - To notify you about changes to our Service{"\n"}
+            - To allow you to participate in interactive features{"\n"}
+            - To provide customer support
+          </Text>
+
+          <Text style={styles.modalSubtitle}>3. Data Security</Text>
+          <Text style={styles.modalText}>
+            We implement appropriate technical and organizational measures to protect your personal information. Passwords are hashed and never stored in plain text.
+          </Text>
+
+          <Text style={styles.modalSubtitle}>4. Data Retention</Text>
+          <Text style={styles.modalText}>
+            We retain your personal information only for as long as necessary to provide you with our services and as described in this Privacy Policy.
+          </Text>
+
+          <Text style={styles.modalSubtitle}>5. Your Rights</Text>
+          <Text style={styles.modalText}>
+            You have the right to access, correct, or delete your personal data. You may also request a copy of your data or withdraw consent at any time.
+          </Text>
+        </ScrollView>
+      );
+    }
+    return null;
+  };
+
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" backgroundColor="transparent" translucent />
-      
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
           <LinearGradient
@@ -234,7 +345,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           />
-          
+
           {/* Back Button - Enhanced Design */}
           <TouchableOpacity
             style={styles.backButton}
@@ -250,7 +361,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </LinearGradient>
           </TouchableOpacity>
-          
+
           {/* Logo */}
           <Animated.View style={[styles.header, { opacity: logoFadeAnim }]}>
             <View style={styles.logoContainer}>
@@ -264,23 +375,23 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
           </Animated.View>
 
           {/* Main Content */}
-          <KeyboardAvoidingView 
+          <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardAvoid}
           >
-            <Animated.View 
+            <Animated.View
               style={[
                 styles.formWrapper,
-                { 
+                {
                   transform: [
                     { translateY: translateYAnim },
                     { scale: scaleAnim }
-                  ] 
+                  ]
                 }
               ]}
             >
               {/* Avatar */}
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.avatarContainer,
                   { opacity: avatarAnim }
@@ -301,7 +412,7 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
               </View>
 
               {/* Form Fields */}
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.formContainer,
                   { opacity: formAnim }
@@ -311,10 +422,10 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
                   styles.inputWrapper,
                   focusedField === 'username' && styles.inputWrapperFocused
                 ]}>
-                  <Ionicons 
-                    name="person-outline" 
-                    size={16} 
-                    color={focusedField === 'username' ? '#4CD964' : '#757575'} 
+                  <Ionicons
+                    name="person-outline"
+                    size={16}
+                    color={focusedField === 'username' ? '#4CD964' : '#757575'}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -332,10 +443,10 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
                   styles.inputWrapper,
                   focusedField === 'email' && styles.inputWrapperFocused
                 ]}>
-                  <Ionicons 
-                    name="mail-outline" 
-                    size={16} 
-                    color={focusedField === 'email' ? '#4CD964' : '#757575'} 
+                  <Ionicons
+                    name="mail-outline"
+                    size={16}
+                    color={focusedField === 'email' ? '#4CD964' : '#757575'}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -355,10 +466,10 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
                   styles.inputWrapper,
                   focusedField === 'password' && styles.inputWrapperFocused
                 ]}>
-                  <Ionicons 
-                    name="lock-closed-outline" 
-                    size={16} 
-                    color={focusedField === 'password' ? '#4CD964' : '#757575'} 
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={16}
+                    color={focusedField === 'password' ? '#4CD964' : '#757575'}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -371,30 +482,35 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
                     onFocus={() => setFocusedField('password')}
                     onBlur={() => setFocusedField(null)}
                   />
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={togglePasswordVisibility}
                     style={styles.eyeIcon}
                   >
-                    <Ionicons 
-                      name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                      size={16} 
-                      color="#757575" 
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={16}
+                      color="#757575"
                     />
                   </TouchableOpacity>
                 </View>
 
                 <Text style={styles.termsText}>
-                  By signing up, you agree to our{' '}
-                  <Text style={styles.termsLink}>Terms</Text> and{' '}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                  By signing up, you agree to our {' '}
+                  <Pressable onPress={() => showModal('terms')}>
+                    <Text style={styles.termsLink}>Terms</Text>
+                  </Pressable> {' '}
+                  &{' '}
+                  <Pressable onPress={() => showModal('privacy')}>
+                    <Text style={styles.termsLink}>Privacy Policy</Text>
+                  </Pressable>
                 </Text>
               </Animated.View>
 
               {/* Register Button */}
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.buttonContainer,
-                  { 
+                  {
                     opacity: buttonAnim,
                     transform: [{ scale: buttonAnim }]
                   }
@@ -435,6 +551,38 @@ const Register: React.FC<RegisterProps> = ({ navigateToLogin, navigateToDashboar
           </View>
         </Animated.View>
       </TouchableWithoutFeedback>
+
+      {/* Terms and Privacy Modal */}
+      <Modal
+        animationType="none"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={hideModal}
+      >
+        <Animated.View style={[styles.modalOverlay, { opacity: modalAnim }]}>
+          <TouchableWithoutFeedback onPress={hideModal}>
+            <View style={styles.modalOverlayTouchable} />
+          </TouchableWithoutFeedback>
+          <Animated.View style={[
+            styles.modalContainer,
+            {
+              transform: [{
+                translateY: modalAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [300, 0]
+                })
+              }]
+            }
+          ]}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={hideModal} style={styles.modalCloseButton}>
+                <Ionicons name="close" size={24} color="#4CD964" />
+              </TouchableOpacity>
+            </View>
+            {renderModalContent()}
+          </Animated.View>
+        </Animated.View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -452,7 +600,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: height * 0.35, 
+    height: height * 0.35,
   },
   keyboardAvoid: {
     flex: 1,
@@ -460,7 +608,7 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? height * 0.07 : height * 0.05, 
+    top: Platform.OS === 'ios' ? height * 0.07 : height * 0.05,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -498,16 +646,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 6,
-    marginTop: height * 0.15, 
+    marginTop: height * 0.15,
   },
   avatarContainer: {
     alignItems: 'center',
-    marginTop: -height * 0.06, 
-    marginBottom: height * 0.01, 
+    marginTop: -height * 0.06,
+    marginBottom: height * 0.01,
   },
   avatarBorder: {
-    width: width * 0.16, 
-    height: width * 0.16, 
+    width: width * 0.16,
+    height: width * 0.16,
     borderRadius: width * 0.08,
     backgroundColor: '#fff',
     padding: 2,
@@ -526,7 +674,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8E8E8',
   },
   titleContainer: {
-    marginBottom: height * 0.01, 
+    marginBottom: height * 0.01,
     alignItems: 'center',
   },
   loginText: {
@@ -555,16 +703,16 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    marginTop: height * 0.008, 
+    marginTop: height * 0.008,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: height * 0.012, 
+    marginBottom: height * 0.012,
     backgroundColor: '#F5F5F7',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 1, 
+    paddingVertical: Platform.OS === 'ios' ? 10 : 1,
     borderWidth: 1,
     borderColor: '#F5F5F7',
   },
@@ -573,27 +721,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FFF9',
   },
   inputIcon: {
-    marginRight: 6, 
+    marginRight: 6,
   },
   input: {
     flex: 1,
-    fontSize: normalizeFontSize(12), 
+    fontSize: normalizeFontSize(12),
     color: '#333',
     paddingVertical: 8,
   },
   eyeIcon: {
-    padding: 4, 
+    padding: 4,
   },
   termsText: {
-    fontSize: normalizeFontSize(10), 
+    fontSize: Math.min(normalizeFontSize(12), width * 0.037),
     color: '#757575',
     textAlign: 'center',
-    lineHeight: 14,
-    marginBottom: height * 0.008, 
+    lineHeight: Platform.OS === 'ios' ? 16 : 18, 
+    fontWeight: '400',
+    marginBottom: height * 0.012,
+    paddingHorizontal: width * 0.02, 
   },
+  
+  
   termsLink: {
     color: '#4CD964',
     fontWeight: '500',
+    top: 2,
+    fontSize: Math.min(normalizeFontSize(20), width * 0.032), 
+    lineHeight: Platform.OS === 'ios' ? 12  : 14,
   },
   buttonContainer: {
     width: '100%',
@@ -607,7 +762,7 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: height * 0.015, 
+    marginBottom: height * 0.015,
     flexDirection: 'row',
     shadowColor: '#4CD964',
     shadowOffset: { width: 0, height: 3 },
@@ -617,7 +772,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: normalizeFontSize(14), 
+    fontSize: normalizeFontSize(14),
     fontWeight: '600',
   },
   buttonIcon: {
@@ -628,17 +783,16 @@ const styles = StyleSheet.create({
   },
   normalText: {
     color: '#757575',
-    fontSize: normalizeFontSize(12), 
+    fontSize: normalizeFontSize(12),
   },
   createAccountText: {
     color: '#4CD964',
-    fontSize: normalizeFontSize(12), 
+    fontSize: normalizeFontSize(12),
     fontWeight: '600',
   },
-
   backButton: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? height * 0.05 : height * 0.035, 
+    top: Platform.OS === 'ios' ? height * 0.05 : height * 0.035,
     left: width * 0.05,
     zIndex: 10,
   },
@@ -675,6 +829,53 @@ const styles = StyleSheet.create({
   activeDot: {
     backgroundColor: '#4CD964',
     width: 12,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalOverlayTouchable: {
+    flex: 1,
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: height * 0.8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
+  modalCloseButton: {
+    padding: 5,
+  },
+  modalContent: {
+    paddingBottom: 20,
+  },
+  modalTitle: {
+    fontSize: normalizeFontSize(18),
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: normalizeFontSize(14),
+    fontWeight: '600',
+    color: '#4CD964',
+    marginTop: 15,
+    marginBottom: 5,
+  },
+  modalText: {
+    fontSize: normalizeFontSize(12),
+    color: '#555',
+    lineHeight: 18,
+    marginBottom: 10,
   },
 });
 
