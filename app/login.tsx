@@ -46,6 +46,7 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [animationsCompleted, setAnimationsCompleted] = useState(false);
   
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -56,49 +57,87 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
   const formAnim = useRef(new Animated.Value(0)).current;
   const buttonAnim = useRef(new Animated.Value(0)).current;
 
+  // Platform specific timing for animations
+  const animationTiming = Platform.OS === 'android' ? 600 : 800;
+
   useEffect(() => {
-    // Sequence animations when component mounts
-    Animated.sequence([
-      // First animate the logo
-      Animated.timing(logoFadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      // Then animate the form sliding up
-      Animated.parallel([
-        Animated.timing(translateYAnim, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
+    // Add a delay before starting animations to ensure layout stability
+    const initialTimeout = setTimeout(() => {
+      // Sequence animations when component mounts
+      Animated.sequence([
+        // First animate the logo
+        Animated.timing(logoFadeAnim, {
           toValue: 1,
-          duration: 800,
+          duration: animationTiming,
           useNativeDriver: true,
         }),
-      ]),
-      // Then fade in the avatar
-      Animated.timing(avatarAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      // Finally fade in the form fields
-      Animated.stagger(200, [
-        Animated.timing(formAnim, {
+        // Then animate the form sliding up
+        Animated.parallel([
+          Animated.timing(translateYAnim, {
+            toValue: 0,
+            duration: animationTiming,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: animationTiming,
+            useNativeDriver: true,
+          }),
+        ]),
+        // Then fade in the avatar
+        Animated.timing(avatarAnim, {
           toValue: 1,
           duration: 500,
           useNativeDriver: true,
         }),
-        Animated.timing(buttonAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
+        // Finally fade in the form fields
+        Animated.stagger(200, [
+          Animated.timing(formAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(buttonAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => {
+        // Mark animations as completed
+        setAnimationsCompleted(true);
+      });
+    }, Platform.OS === 'android' ? 300 : 100);
+
+    return () => clearTimeout(initialTimeout);
   }, []);
+
+  // Add keyboard listeners to handle keyboard appearance
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        // Freeze animations when keyboard is visible
+        if (!animationsCompleted) {
+          translateYAnim.stopAnimation();
+          scaleAnim.stopAnimation();
+          setAnimationsCompleted(true);
+        }
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, [animationsCompleted]);
 
   const handleNavigation = (navigateFunction: () => void) => {
     Animated.timing(fadeAnim, {
@@ -182,11 +221,16 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
     setShowPassword(!showPassword);
   };
 
+  // Prevent keyboard from causing layout shifts
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" backgroundColor="transparent" translucent />
       
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <TouchableWithoutFeedback onPress={dismissKeyboard}>
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
           <LinearGradient
             colors={['#4CD964', '#2E8B57', '#1E5631']}
@@ -218,7 +262,8 @@ const Login: React.FC<LoginProps> = ({ navigateToDashboard, navigateToRegister, 
 
           {/* Main Content */}
           <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
             style={styles.keyboardAvoid}
           >
             <Animated.View 
@@ -407,6 +452,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: 100,
     overflow: 'hidden',
+    zIndex: 1,
   },
   waveImage: {
     width: width,
@@ -423,6 +469,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
+    zIndex: 2,
   },
   logoContainer: {
     flexDirection: 'row',
@@ -460,12 +507,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1, 
     shadowRadius: 12,
     elevation: 8,
-    marginTop: height * 0.15, 
+    marginTop: height * 0.15,
+    position: 'relative',
+    zIndex: 5,
   },
   avatarContainer: {
     alignItems: 'center',
     marginTop: -height * 0.07, 
-    marginBottom: height * 0.01, 
+    marginBottom: height * 0.01,
   },
   avatarBorder: {
     width: width * 0.18, 
@@ -625,7 +674,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     width: 16, 
   },
-  // Redesigned back button
+
   backButton: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 40,

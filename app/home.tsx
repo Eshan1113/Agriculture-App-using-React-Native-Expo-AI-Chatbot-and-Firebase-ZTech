@@ -38,6 +38,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const [isDeviceOnline, setIsDeviceOnline] = useState(true);
   const [notificationsViewed, setNotificationsViewed] = useState(false);
+  
   const [showNotifications, setShowNotifications] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
 
@@ -55,6 +56,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
     relay_status: 'OFF',
   });
   const [soilMoistureThreshold, setSoilMoistureThreshold] = useState(50); 
+  const [temperatureThreshold, setTemperatureThreshold] = useState(30);
   // Animation value for sidebar
   const sidebarAnim = useRef(new Animated.Value(-250)).current;
   useEffect(() => {
@@ -78,6 +80,21 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
     const interval = setInterval(checkSession, 300000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+ 
+    const tempThresholdRef = ref(database, 'sensor_data/temperature_threshold');
+    const unsubscribeTempThreshold = onValue(tempThresholdRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setTemperatureThreshold(snapshot.val());
+      }
+    });
+  
+    return () => {
+      unsubscribeTempThreshold();
+    };
+  }, []);
+
   // Fetch real-time data from Firebase
   useEffect(() => {
     const dbRef = ref(database, 'sensor_data');
@@ -103,7 +120,11 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
         setSoilMoistureThreshold(snapshot.val());
       }
     });
-
+    const handleTemperatureThresholdChange = (value: number) => {
+      setTemperatureThreshold(value);
+      const thresholdRef = ref(database, 'sensor_data/temperature_threshold');
+      set(thresholdRef, value);
+    };
     // Cleanup listeners on unmount
     return () => {
       unsubscribeSensorData();
@@ -144,12 +165,20 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
     return () => clearInterval(checkInterval);
   }, [lastUpdateTime, isDeviceOnline]);
 
-
+  const getTemperatureColor = (temp: number, threshold: number) => {
+    return temp > threshold ? '#FACC15' : '#4ADE80';
+  };
   // Update threshold in Firebase when slider changes
   const handleThresholdChange = (value: number) => {
     setSoilMoistureThreshold(value); 
     const thresholdRef = ref(database, 'sensor_data/moisture_threshold');
     set(thresholdRef, value); 
+  };
+
+  const handleTemperatureThresholdChange = (value: number) => {
+    setTemperatureThreshold(value);
+    const thresholdRef = ref(database, 'sensor_data/temperature_threshold');
+    set(thresholdRef, value);
   };
 
   const toggleSidebar = () => {
@@ -510,7 +539,7 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
                   <Circle cx="50" cy="50" r="45" stroke="#E5E7EB" strokeWidth="10" fill="none" />
                   <Path
                     d={calculateArc(sensorData.temperature, 50).path}
-                    stroke={getTemperatureColor(sensorData.temperature)}
+                    stroke={getTemperatureColor(sensorData.temperature, temperatureThreshold)}
                     strokeWidth="10"
                     fill="none"
                   />
@@ -555,7 +584,24 @@ const Home = ({ navigateToProfileCustomization, navigateToLogin, navigateToFAQ, 
                 thumbTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
               />
             </View>
-
+{/* Add this below the Soil Moisture Threshold Slider */}
+<View style={styles.sliderContainer}>
+  <Text style={styles.sliderLabel}>
+    Temperature Threshold: {temperatureThreshold}°C
+  </Text>
+  <Slider
+    style={styles.slider}
+    minimumValue={0}
+    maximumValue={50}
+    step={1}
+    value={temperatureThreshold}
+    onValueChange={isDeviceOnline ? handleTemperatureThresholdChange : undefined}
+    disabled={!isDeviceOnline}
+    minimumTrackTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
+    maximumTrackTintColor={isDeviceOnline ? '#E5E7EB' : '#E5E7EB'}
+    thumbTintColor={isDeviceOnline ? '#4ADE80' : '#D1D5DB'}
+  />
+</View>
           </View>
 
         </View>

@@ -102,10 +102,8 @@ const Contact = ({ navigateToHome }: { navigateToHome: () => void }) => {
             <Text style={styles.noteTitle}>Agricultural Support</Text>
           </View>
           <Text style={styles.noticeText}>
-            Our team includes agricultural experts who can help with plant care advice, 
-            optimal moisture settings, and troubleshooting for your specific crops. 
-            For farming-related questions, please include details about your plants 
-            and current sensor readings.
+          Our team includes agricultural experts who provide plant care advice, recommend optimal moisture settings, and offer troubleshooting support tailored to your specific crops.
+          
           </Text>
         </View>
 
