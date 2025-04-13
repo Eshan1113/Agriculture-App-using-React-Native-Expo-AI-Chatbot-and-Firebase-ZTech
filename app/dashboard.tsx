@@ -16,16 +16,14 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
   const translateYAnim = useRef(new Animated.Value(0)).current;
 
   const features: { text: string; color: string; icon: 'water-outline' | 'timer-outline' | 'notifications-outline' }[] = [
-      { text: 'Soil Moisture Tracking', color: '#16a34a', icon: 'water-outline' },
-      { text: 'Automated Irrigation', color: '#2563eb', icon: 'timer-outline' },
-      { text: 'Crop Health Alerts', color: '#dc2626', icon: 'notifications-outline' },
+    { text: 'Soil Moisture Tracking', color: '#16a34a', icon: 'water-outline' },
+    { text: 'Automated Irrigation', color: '#2563eb', icon: 'timer-outline' },
+    { text: 'Crop Health Alerts', color: '#dc2626', icon: 'notifications-outline' },
   ];
 
   useEffect(() => {
     const animateText = () => {
-      // Sequence: Fade out + move up, then reset position (hidden), then fade in + move up
       Animated.sequence([
-        // Fade out and move up
         Animated.parallel([
           Animated.timing(featureFadeAnim, {
             toValue: 0,
@@ -38,13 +36,11 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
             useNativeDriver: true,
           }),
         ]),
-        // Reset position while invisible
         Animated.timing(translateYAnim, {
           toValue: 20,
           duration: 0,
           useNativeDriver: true,
         }),
-        // Fade in and move to normal position
         Animated.parallel([
           Animated.timing(featureFadeAnim, {
             toValue: 1,
@@ -60,7 +56,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
         ]),
       ]).start();
 
-      // Update the feature index after the animation starts
       setTimeout(() => {
         setFeatureIndex((prevIndex) => (prevIndex + 1) % features.length);
       }, 300);
@@ -128,22 +123,38 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
             </View>
 
             <Text style={styles.descriptionText}>
-              Monitor and optimize your crops with IoT-powered soil sensors, 
-              automated irrigation, and real-time environmental tracking.
+              Revolutionizing agriculture through IoT technology, Z-Tech empowers farmers 
+              with real-time insights and automated solutions for optimal crop management.
             </Text>
 
-            {/* Feature indicators */}
-            {/* <View style={styles.featureIndicators}>
-              {features.map((_, idx) => (
-                <View 
-                  key={idx} 
-                  style={[
-                    styles.featureIndicator, 
-                    featureIndex === idx ? { backgroundColor: features[idx].color } : {}
-                  ]} 
-                />
-              ))}
-            </View> */}
+            <View style={styles.infoContainer}>
+              <View style={styles.infoItem}>
+                <Ionicons name="person-circle-outline" size={24} color="#1a2e05" />
+                <View style={styles.infoTextContainer}>
+                  <Text style={styles.infoTitle}>Developed By</Text>
+                  <Text style={styles.infoContent}>Eshan Dananjaya</Text>
+                  <Text style={styles.infoSubText}>Agri-Tech Specialist | IoT Expert</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoItem}>
+                <Ionicons name="people-outline" size={24} color="#1a2e05" />
+                <View style={styles.infoTextContainer}>
+                  <Text style={styles.infoTitle}>Designed For</Text>
+                  <Text style={styles.infoContent}>Modern Farmers</Text>
+                  <Text style={styles.infoSubText}>Small to medium-scale agricultural operations</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoItem}>
+                <Ionicons name="leaf-outline" size={24} color="#1a2e05" />
+                <View style={styles.infoTextContainer}>
+                  <Text style={styles.infoTitle}>Key Benefits</Text>
+                  <Text style={styles.infoContent}>40% Yield Improvement</Text>
+                  <Text style={styles.infoSubText}>Water conservation | Disease prevention</Text>
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -236,7 +247,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-  
   },
   featureIcon: {
     marginRight: 12,
@@ -246,17 +256,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  featureIndicators: {
-    flexDirection: 'row',
-    marginTop: 16,
-    gap: 8,
-  },
-  featureIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#d1d5db',
-  },
   descriptionText: {
     fontSize: 16,
     color: '#4b5563',
@@ -264,6 +263,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
     marginTop: 8,
+  },
+  infoContainer: {
+    marginTop: 30,
+    width: '100%',
+    paddingHorizontal: 15,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+  },
+  infoTextContainer: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a2e05',
+    marginBottom: 2,
+  },
+  infoContent: {
+    fontSize: 14,
+    color: '#365314',
+    fontWeight: '500',
+  },
+  infoSubText: {
+    fontSize: 12,
+    color: '#4b5563',
+    marginTop: 3,
   },
   bottomContainer: {
     flexDirection: 'row',
