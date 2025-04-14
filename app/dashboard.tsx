@@ -146,14 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToWelcome, navigateToLogi
                 </View>
               </View>
 
-              <View style={styles.infoItem}>
-                <Ionicons name="leaf-outline" size={24} color="#1a2e05" />
-                <View style={styles.infoTextContainer}>
-                  <Text style={styles.infoTitle}>Key Benefits</Text>
-                  <Text style={styles.infoContent}>40% Yield Improvement</Text>
-                  <Text style={styles.infoSubText}>Water conservation | Disease prevention</Text>
-                </View>
-              </View>
+              
             </View>
           </View>
         </View>
